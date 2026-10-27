@@ -1,0 +1,718 @@
+From ffc77d1cad48db85bb97ee5ab7462bc3a6cb45bf Mon Sep 17 00:00:00 2001
+From: claude <claude@anthropic.com>
+Date: Tue, 27 Oct 2026 21:58:54 +0000
+Subject: [PATCH] =?UTF-8?q?Redesign:=20car-service=20UI,=20themes,=20AI=20?=
+ =?UTF-8?q?=D0=9F=D0=BE=D0=BC=D0=BE=D1=89=D0=BD=D0=B8=D0=BA=20(Realtime),?=
+ =?UTF-8?q?=20cancel-delete=20trigger;=20remove=20tracked=20node=5Fmodules?=
+ =?UTF-8?q?=20and=20stray=20files?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .gitignore                                  |   3 +
+ README.md                                   |  16 ++-
+ index.html                                  |   2 +
+ iphone                                      |  68 ------------
+ public/sw.js                                |   2 +-
+ src/components/Admin.tsx                    |  39 ++++---
+ src/components/Chat.tsx                     |  56 ++++++++--
+ src/components/Client.tsx                   | 109 +++++++++++---------
+ src/index.css                               |  37 +++++--
+ src/lib/config.ts                           |   7 ++
+ src/lib/types.ts                            |   6 +-
+ src/main.tsx                                |   3 +-
+ src/services/_template.json                 |   2 +-
+ src/services/service-1/config.json          |  14 ++-
+ supabase/functions/assistant/index.ts       |  54 ++++++++++
+ supabase/migrations/002_chat_and_cancel.sql |  55 ++++++++++
+ supabase/schema.sql                         |  57 ++++++++++
+ 17 files changed, 369 insertions(+), 161 deletions(-)
+ delete mode 100644 iphone
+ create mode 100644 supabase/functions/assistant/index.ts
+ create mode 100644 supabase/migrations/002_chat_and_cancel.sql
+
+diff --git a/.gitignore b/.gitignore
+index 4c49bd7..a167bc6 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1 +1,4 @@
++node_modules
++dist
+ .env
++.DS_Store
+diff --git a/README.md b/README.md
+index faae467..ecc3a29 100644
+--- a/README.md
++++ b/README.md
+@@ -1 +1,15 @@
+-# Booking PWA (React + Vite + TS + Tailwind + Supabase)
+\ No newline at end of file
++# Автосервис — PWA для записи (React + Vite + TS + Tailwind 3 + Supabase)
++
++Мультистудийный: каждая студия — `src/services/<slug>/config.json`, адреса `/<slug>` (клиент) и `/<slug>/admin` (кабинет).
++Новая студия: скопировать `src/services/_template.json` в `src/services/service-N/config.json`, добавить строку в `stores` (пароль кабинета — хеш).
++
++## Запуск
++1. `cp .env.example .env` и заполнить `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`; `npm i && npm run dev`.
++2. Supabase → SQL Editor: чистая БД — `supabase/schema.sql`; уже развёрнутая — `supabase/migrations/002_chat_and_cancel.sql`.
++   Создайте студию: `insert into stores(slug,name,admin_hash) values('service-1','Fast Repair',crypt('ваш_пароль',gen_salt('bf')));` и повторите блок 5 миграции (график и услуги для Помощника).
++3. «Помощник»: `supabase functions deploy assistant` и `supabase secrets set OPENROUTER_API_KEY=... [OPENROUTER_MODEL=...]`.
++   Системный промпт зашит в `supabase/functions/assistant/index.ts`. Время работы/боксы/услуги берутся из БД (`stores.settings`, `services`) — при смене `config.json` обновите и их.
++
++## Правила
++- Статус `cancelled` → запись автоматически удаляется SQL-триггером.
++- Палитра и темы (тёмная/светлая) — только в `src/index.css`; акцент студии — `accent` в config.json.
+diff --git a/index.html b/index.html
+index 2d28542..b803acc 100644
+--- a/index.html
++++ b/index.html
+@@ -2,4 +2,6 @@
+ <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+ <meta name="theme-color" content="#0A0A0C"/><link rel="manifest" href="/manifest.webmanifest"/>
+ <link rel="icon" href="/icon.svg"/><link rel="apple-touch-icon" href="/icon.svg"/>
++<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
++<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;600&display=swap" rel="stylesheet"/>
+ <title>Онлайн-запись</title></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>
+diff --git a/iphone b/iphone
+deleted file mode 100644
+index fbe401e..0000000
+--- a/iphone
++++ /dev/null
+@@ -1,68 +0,0 @@
+-Вот полный и итоговый контекст нашего проекта вместе с инструкциями по базе данных Supabase, регионам и промптом. Ты можешь полностью скопировать этот текст и переслать его другому ИИ.
+-📋 КОНТЕКСТ ПРОЕКТА ДЛЯ ДРУГОГО ИИ (Скопируй и отправь)
+-> Суть проекта:
+-> Я делаю микро-бизнес в Актау (Казахстан) — создаю современную веб-платформу (PWA) для онлайн-записи клиентов в автосервисы (СТО) и детейлинг-студии.
+-> Архитектура и структура:
+->  * В репозитории GitHub есть папка services. В ней лежит единый базовый шаблон index.html (стиль Apple / Tesla, темный фон #0A0A0C, glassmorphism-эффекты) и 20 папок для разных СТО (service-1, service-2, ...).
+->  * У каждого СТО в его папке есть свой файл config.js (или .json) с локальными данными (название, логотип, фото, контакты, график, цены, цвет темы). Если каких-то фото или отзывов нет — срабатывают встроенные красиво оформленные заглушки (fallbacks).
+->  * База данных (Supabase) — ровно 2 таблицы:
+->    * Таблица 1 (stores): Реестр всех СТО. Поля: id, slug (уникальный идентификатор, например tulpar), name, phone, admin_password (пароль для входа в кабинет владельца).
+->    * Таблица 2 (bookings): Единая таблица для ВСЕХ записей всех СТО. Поля: id, store_slug (к какому СТО относится запись), client_name, client_phone, car_model, booking_time, status ("Новая", "Подтверждена" и т.д.).
+-> В чем моя проблема прямо сейчас:
+-> Я открыл панель Supabase, но не умею кликать по кнопкам и правильно создавать эти две таблицы. Я буду отправлять тебе скриншоты своего экрана Supabase, а ты должен пошагово писать мне, на какую именно кнопку нажать, какое поле заполнить и какой тип данных (text, uuid, timestamp и т.д.) выбрать.
+-> 
+-🌐 Пояснение про регионы в Supabase (Индия, Ирландия, West Europe)
+-Не переживай по поводу того, что ты нажал!
+- * Почему так произошло? В бесплатном тарифе Supabase серверы (базы данных) расположены в определенных дата-центрах AWS по всему миру. Регионы вроде Ireland (eu-west-1), Frankfurt (eu-central-1) или India (ap-south-1) — это физические серверы.
+- * Что выбрать для Казахстана / Актау?
+-   * Лучше всего выбирать Europe (Frankfurt) или Europe (Ireland). Запросы из Казахстана до Европы доходят очень быстро, задержка будет минимальной.
+-   * Если выбирал между ними — оставляй Europe (Ireland / Frankfurt). Ничего страшного не произошло, база будет работать отлично и быстро!
+-🚀 Пошаговый итоговый промпт для Claude (со скриптом для ZIP-архива)
+-Этот промпт ты можешь отправить в Claude, чтобы он сгенерировал полный код проекта и дал команды для создания ZIP-архива:
+-Создай готовое веб-приложение (PWA) для онлайн-записи в автосервис или детейлинг-студию. Интерфейс должен выглядеть ультрасовременно, дорого и технологично — в стиле продуктов Apple или Tesla: глубокий черный фон (#0A0A0C), чистый белый текст и настраиваемый акцентный цвет (по умолчанию глубокий синий #4690FF, но с возможностью легкой смены на красный или другой оттенок через конфигурацию) с эффектами полупрозрачного стекла (Glassmorphism).
+-
+-Приложение должно работать по прямой ссылке как на компьютере, так и на телефоне (без обязательной регистрации для клиентов, с возможностью установки на главный экран телефона как PWA).
+-
+-АРХИТЕКТУРА, СКОРОСТЬ И МАСШТАБИРОВАНИЕ:
+-- Система должна поддерживать неограниченное масштабирование через общую папку `services` в репозитории. Внутри папки `services` находится базовый шаблонный файл `index.html` (со всем необходимым CSS и JS внутри или рядом), а также отдельные папки для каждого автосервиса (например, service-1, service-2, ..., service-20), куда при необходимости можно легко добавлять новые.
+-- В папке каждого конкретного сервиса лежит свой файл `index.html`, который ссылается на общий шаблон, а также локальный конфигурационный файл (например, `config.js` или `config.json`), содержащий все уникальные данные этого сервиса. Это позволяет каждому автосервису хранить свои данные локально для максимальной производительности, не нагружая базу лишними запросами.
+-- Перечень данных, которые собираются и прописываются в локальный конфиг каждого сервиса:
+-  1. Название автосервиса / детейлинг-центра.
+-  2. Логотип студии.
+-  3. Главное изображение (баннер / карточка, где изображена машина или бокс именно этого детейлинг-центра).
+-  4. Контакты (адрес в городе, телефон, мессенджеры).
+-  5. График работы и выходные дни.
+-  6. Прайс-лист услуг (названия, цены, длительность).
+-  7. Фотографии выполненных работ (галерея).
+-  8. Кастомный акцентный цвет (например, синий, красный или другой на выбор).
+-  *Примечание:* Если у какого-то сервиса отсутствуют фотографии, логотип или отзывы, система должна автоматически подставлять красивые шаблонные заглушки-фоллбэки, не ломая интерфейс лендинга.
+-- Используй React, Vite, TypeScript и Tailwind CSS.
+-
+-БАЗА ДАННЫХ SUPABASE (Две раздельные таблицы для неограниченного роста):
+-1. Таблица `stores`: Хранит идентификатор студии (slug), название, контактные данные, настройки и хеш/пароль администратора для входа в защищенную панель.
+-2. Таблица `bookings`: Универсальная таблица для накопления записей клиентов всех студий без ограничений по количеству (поля: ID, store_slug, имя, телефон, машина, дата/время, статус). Записи каждого отдельного сервиса изолированы по его `store_slug`, что позволяет каждому автосервису независимо принимать десятки и сотни клиентов.
+-
+-СТРУКТУРА ПРИЛОЖЕНИЯ И ЭКРАНЫ:
+-1. Клиентская часть (Главная страница):
+-   - Шапка с логотипом студии, индикатором статуса (например, «Демо-версия системы») и кнопкой быстрого вызова.
+-   - Главный экран (Hero): Большое качественное фото автомобиля/студии, название, краткое описание и заметная кнопка с эффектом стекла «Записаться в студию».
+-   - Блок услуг и цен: Список услуг с ценами и длительностью.
+-   - Галерея работ: Карточки с фотографиями и описанием выполненных работ (с учётом фоллбэков при отсутствии фото).
+-   - Интерактивная форма записи: Клиент выбирает услугу, свободную дату и время (с учетом занятости боксов и графиков работы), вводит имя, телефон и марку машины, после чего подтверждает запись. Занятое время должно быть заблокировано. Записи напрямую улетают в таблицу `bookings` в Supabase.
+-   - Нижняя навигационная панель (для мобильных): «Главная», «Услуги», «Моя запись» со стильным стеклянным эффектом (backdrop-filter: blur), которая не перекрывает контент.
+-
+-2. ИИ-Ассистент (AI виджет):
+-   - Добавь плавающий чат-ассистент с готовыми кнопками-подсказками («Когда ближайшее окно?», «Сколько стоит полировка?», «Как найти студию?»). 
+-   - Ассистент должен отвечать клиенту в рамках расписания и услуг именно этой студии, помогая подобрать свободное время.
+-
+-3. Кабинет владельца (Admin Panel):
+-   - Отдельная защищенная страница входа по паролю, сверяемая с таблицей `stores` в Supabase.
+-   - Дашборд владельца: просмотр записей из таблицы `bookings` на день/неделю, количество заездов, выполненных работ и выручки.
+-   - Возможность вручную добавлять, переносить или отменять записи, блокировать боксы, менять цены, услуги, часы работы, адрес, телефон и фотографии.
+-   - Возможность для владельца через чат-помощника в кабинете узнавать базовую аналитику («Что у меня завтра?», «Сколько машин было на неделе?», «Сколько денег получено?»).
+-
+-ДОПОЛНИТЕЛЬНОЕ ТРЕБОВАНИЕ К ВЫВОДУ КОДА И УПАКОВКЕ:
+-1. Выведи всю структуру проекта и полный рабочий код каждого файла (без сокращений и без меток «// здесь ваш код»).
+-2. Предоставь готовый скрипт (Node.js или bash/python) или единый bash-скрипт создания архива, чтобы я мог одной командой в GitHub Codespaces или терминале создать готовый `project.zip` со всей структурой папок (/services, /services/service-1, config.js, index.html и т.д.).
+-3. Архив должен быть готов к распаковке на локальном компьютере и деплою на Vercel без дополнительных ручных правок.
+-
+diff --git a/public/sw.js b/public/sw.js
+index e066005..6234949 100644
+--- a/public/sw.js
++++ b/public/sw.js
+@@ -1,3 +1,3 @@
+-const C='v1';self.addEventListener('install',e=>self.skipWaiting());
++const C='v2';self.addEventListener('install',e=>self.skipWaiting());
+ self.addEventListener('fetch',e=>{if(e.request.method!=='GET'||e.request.url.includes('supabase'))return;
+ e.respondWith(fetch(e.request).then(r=>{const c=r.clone();caches.open(C).then(x=>x.put(e.request,c));return r}).catch(()=>caches.match(e.request)))});
+diff --git a/src/components/Admin.tsx b/src/components/Admin.tsx
+index b6673d4..a4e205b 100644
+--- a/src/components/Admin.tsx
++++ b/src/components/Admin.tsx
+@@ -1,35 +1,40 @@
+-import {useMemo,useState} from 'react'
+-import type {Cfg,Booking} from '../lib/types';import {sb} from '../lib/supabase';import {fmt,rub} from '../lib/slots';import Chat from './Chat'
++import {useEffect,useMemo,useState} from 'react'
++import type {Cfg,Booking} from '../lib/types';import {STATUS} from '../lib/types'
++import {sb} from '../lib/supabase';import {useTheme} from '../lib/config';import {fmt,rub} from '../lib/slots';import Chat from './Chat'
+ export default function Admin({cfg}:{cfg:Cfg}){
+-  const [pw,setPw]=useState(sessionStorage.getItem('pw'+cfg.slug)??''),[rows,setRows]=useState<Booking[]|null>(null),[err,setErr]=useState(''),[range,setRange]=useState<'day'|'week'>('day')
++  const [pw,setPw]=useState(sessionStorage.getItem('pw'+cfg.slug)??''),[rows,setRows]=useState<Booking[]|null>(null),[err,setErr]=useState(''),[range,setRange]=useState<'day'|'week'>('day'),[theme,toggle]=useTheme()
+   const [n,setN]=useState({name:'',phone:'',car:'',svc:cfg.services[0].id,at:''})
+   const load=async(p=pw)=>{if(!sb)return setErr('Supabase не настроен');const {data,error}=await sb.rpc('admin_list',{s:cfg.slug,p});if(error)return setErr('Неверный пароль');sessionStorage.setItem('pw'+cfg.slug,p);setErr('');setRows(data)}
+   const act=async(fn:string,a:object)=>{await sb!.rpc(fn,{s:cfg.slug,p:pw,...a});load()}
++  useEffect(()=>{if(!rows)return;const t=setInterval(()=>load(),15000);return()=>clearInterval(t)},[!!rows,pw])
+   const day0=(o=0)=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+o);return d}
+-  const inR=(r:Booking,a:Date,b:Date)=>{const t=new Date(r.starts_at);return t>=a&&t<b&&r.status!=='cancelled'}
+-  const view=useMemo(()=>(rows??[]).filter(r=>r.status!=='cancelled'&&inR(r,day0(),day0(range==='day'?1:7))),[rows,range])
++  const inR=(r:Booking,a:Date,b:Date)=>{const t=new Date(r.starts_at);return t>=a&&t<b}
++  const view=useMemo(()=>(rows??[]).filter(r=>inR(r,day0(),day0(range==='day'?1:7))),[rows,range])
+   const week=(rows??[]).filter(r=>inR(r,day0(-6),day0(1))),done=(rows??[]).filter(r=>r.status==='done')
+   const answer=(q:string)=>{
+     if(/завтра/.test(q)){const l=(rows??[]).filter(r=>inR(r,day0(1),day0(2)));return l.length?l.map(r=>`${fmt(r.starts_at).split(', ')[1]} ${r.car} — ${r.service_name}`).join('\n'):'На завтра записей нет.'}
+     if(/недел|машин/.test(q))return `За последние 7 дней заездов: ${week.length}.`
+-    if(/денег|выруч|получен/.test(q))return `Выручка по выполненным работам: ${rub(done.reduce((s,r)=>s+r.price,0))}.`
++    if(/денег|выруч|получен/.test(q))return `Выручка по выданным авто: ${rub(done.reduce((s,r)=>s+r.price,0))}.`
+     return 'Спросите: «Что у меня завтра?», «Сколько машин было на неделе?», «Сколько денег получено?»'}
+   async function add(){const s=cfg.services.find(x=>x.id===n.svc)!;const a=new Date(n.at);if(!n.name||isNaN(+a))return
+     await act('admin_add',{n:n.name,ph:n.phone,c:n.car,sv:s.name,pr:s.price,a:a.toISOString(),e:new Date(+a+s.duration*6e4).toISOString()})}
+-  if(!rows)return <div className="min-h-screen grid place-items-center p-6"><div className="glass p-6 w-full max-w-sm space-y-3"><h1 className="text-xl">Кабинет · {cfg.name}</h1>
+-    <input type="password" className="inp" placeholder="Пароль" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==='Enter'&&load()}/><button className="btn w-full" onClick={()=>load()}>Войти</button>{err&&<p className="text-red-400 text-sm">{err}</p>}</div></div>
+-  return <div className="max-w-3xl mx-auto p-4 pb-32 space-y-4">
+-    <div className="flex justify-between items-center"><h1 className="text-2xl">{cfg.name}</h1><button className="btn-glass !py-2" onClick={()=>{sessionStorage.clear();setRows(null);setPw('')}}>Выйти</button></div>
+-    <div className="grid grid-cols-3 gap-3 text-center">{[['Заездов за неделю',week.length],['Выполнено',done.length],['Выручка',rub(done.reduce((s,r)=>s+r.price,0))]].map(([l,v])=><div key={l as string} className="glass p-3"><div className="text-xl text-accent">{v}</div><div className="text-xs text-white/50">{l}</div></div>)}</div>
++  if(!rows)return <div className="min-h-screen grid place-items-center p-6"><div className="glass p-6 w-full max-w-sm space-y-3"><h1 className="display text-xl">Кабинет · {cfg.name}</h1>
++    <input type="password" className="inp" placeholder="Пароль" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==='Enter'&&load()}/><button className="btn w-full" onClick={()=>load()}>Войти</button>{err&&<p className="text-red-500 text-sm">{err}</p>}</div></div>
++  return <div className="max-w-3xl mx-auto pb-32">
++    {cfg.demo&&<div className="demo">Демо-версия сайта. Не является реальной службой записи</div>}
++    <div className="p-4 space-y-4">
++    <div className="flex justify-between items-center gap-2"><h1 className="display text-2xl flex-1">{cfg.name}</h1><button className="btn-glass !py-2" onClick={toggle}>{theme==='dark'?'☀︎':'☾'}</button>
++      <button className="btn-glass !py-2" onClick={()=>{sessionStorage.clear();setRows(null);setPw('')}}>Выйти</button></div>
++    <div className="grid grid-cols-3 gap-3 text-center">{[['Заездов за неделю',week.length],['Выдано',done.length],['Выручка',rub(done.reduce((s,r)=>s+r.price,0))]].map(([l,v])=><div key={l as string} className="glass p-3"><div className="display text-lg" style={{color:'rgb(var(--accent))'}}>{v}</div><div className="text-xs muted">{l}</div></div>)}</div>
+     <div className="flex gap-2">{(['day','week'] as const).map(r=><button key={r} onClick={()=>setRange(r)} className={range===r?'btn !py-2':'btn-glass !py-2'}>{r==='day'?'Сегодня':'Неделя'}</button>)}</div>
+     <div className="space-y-2">{view.length?view.map(r=><div key={r.id} className="glass p-3 text-sm"><div className="flex justify-between"><b>{fmt(r.starts_at)}</b><span>{rub(r.price)}</span></div>
+-      <div>{r.name} · {r.phone} · {r.car}</div><div className="text-white/50">{r.service_name} {r.status==='done'&&'✓'}</div>
+-      <div className="flex gap-2 mt-2"><button className="btn-glass !py-1 !px-3" onClick={()=>act('admin_set_status',{b:r.id,st:'done'})}>Выполнено</button>
++      <div>{r.name} · <a href={'tel:'+r.phone}>{r.phone}</a> · {r.car}</div><div className="muted">{r.service_name}</div>
++      <div className="flex gap-2 mt-2 flex-wrap"><select className="inp !py-1.5 !w-auto" value={r.status} onChange={e=>act('admin_set_status',{b:r.id,st:e.target.value})}>{Object.entries(STATUS).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select>
+       <button className="btn-glass !py-1 !px-3" onClick={()=>{const v=prompt('Новое время (ГГГГ-ММ-ДД ЧЧ:ММ)',r.starts_at.slice(0,16).replace('T',' '));if(!v)return;const a=new Date(v.replace(' ','T'));if(!isNaN(+a))act('admin_move',{b:r.id,a:a.toISOString(),e:new Date(+a+(+new Date(r.ends_at)-+new Date(r.starts_at))).toISOString()})}}>Перенести</button>
+-      <button className="btn-glass !py-1 !px-3" onClick={()=>act('admin_set_status',{b:r.id,st:'cancelled'})}>Отменить</button></div></div>):<p className="text-white/50">Записей нет.</p>}</div>
+-    <div className="glass p-4 space-y-2"><h2>Добавить запись</h2>
++      <button className="btn-glass !py-1 !px-3" onClick={()=>confirm('Отменить и удалить запись?')&&act('admin_set_status',{b:r.id,st:'cancelled'})}>Отменить</button></div></div>):<p className="muted">Записей нет.</p>}</div>
++    <div className="glass p-4 space-y-2"><h2 className="display text-lg">Добавить запись</h2>
+       {(['name','phone','car'] as const).map(k=><input key={k} className="inp" placeholder={{name:'Имя',phone:'Телефон',car:'Авто'}[k]} value={n[k]} onChange={e=>setN({...n,[k]:e.target.value})}/>)}
+-      <select className="inp" value={n.svc} onChange={e=>setN({...n,svc:e.target.value})}>{cfg.services.map(s=><option key={s.id} value={s.id} className="text-black">{s.name}</option>)}</select>
++      <select className="inp" value={n.svc} onChange={e=>setN({...n,svc:e.target.value})}>{cfg.services.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select>
+       <input type="datetime-local" className="inp" value={n.at} onChange={e=>setN({...n,at:e.target.value})}/><button className="btn w-full" onClick={add}>Добавить</button></div>
+-    <Chat title="Помощник владельца" hints={['Что у меня завтра?','Сколько машин было на неделе?','Сколько денег получено?']} answer={answer}/></div>
++    <Chat cfg={cfg} title="Помощник владельца" hints={['Что у меня завтра?','Сколько машин было на неделе?','Сколько денег получено?']} answer={answer}/></div></div>
+ }
+diff --git a/src/components/Chat.tsx b/src/components/Chat.tsx
+index cbb4ec0..5a3d7b3 100644
+--- a/src/components/Chat.tsx
++++ b/src/components/Chat.tsx
+@@ -1,13 +1,47 @@
+-import {useState} from 'react'
+-export default function Chat({title,hints,answer}:{title:string;hints:string[];answer:(q:string)=>string}){
+-  const [open,setOpen]=useState(false),[log,setLog]=useState<{r:'u'|'a';t:string}[]>([]),[q,setQ]=useState('')
+-  const ask=(t:string)=>{if(!t.trim())return;setLog(l=>[...l,{r:'u',t},{r:'a',t:answer(t.toLowerCase())}]);setQ('')}
++import {useEffect,useRef,useState} from 'react'
++import type {Cfg} from '../lib/types'
++import {sb} from '../lib/supabase'
++
++type M={id:string;role:'user'|'assistant';content:string}
++const sidOf=(slug:string)=>{const k='chat_sid_'+slug;let s=localStorage.getItem(k);if(!s){s=crypto.randomUUID();localStorage.setItem(k,s)}return s}
++
++/** Без `answer` — ИИ «Помощник» (Supabase Realtime + Edge Function). С `answer` — локальные ответы (кабинет владельца). */
++export default function Chat({cfg,title='Помощник',hints,answer}:{cfg:Cfg;title?:string;hints:string[];answer?:(q:string)=>string}){
++  const [open,setOpen]=useState(false),[q,setQ]=useState(''),[wait,setWait]=useState(false),[log,setLog]=useState<M[]>([])
++  const sid=useRef(sidOf(cfg.slug)).current,end=useRef<HTMLDivElement>(null)
++  const add=(m:M)=>setLog(l=>l.some(x=>x.id===m.id)?l:[...l,m])
++  const ai=!answer&&!!sb
++
++  useEffect(()=>{
++    if(!ai)return
++    sb!.from('chat_messages').select('id,role,content').eq('session_id',sid).order('created_at').then(r=>setLog((r.data as M[])??[]))
++    const ch=sb!.channel('chat-'+sid).on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:`session_id=eq.${sid}`},
++      p=>{const m=p.new as M;add(m);if(m.role==='assistant')setWait(false)}).subscribe()
++    return()=>{sb!.removeChannel(ch)}
++  },[])
++  useEffect(()=>{end.current?.scrollIntoView({behavior:'smooth'})},[log,open,wait])
++
++  async function ask(t:string){
++    t=t.trim();if(!t||wait)return;setQ('')
++    if(answer){setLog(l=>[...l,{id:crypto.randomUUID(),role:'user',content:t},{id:crypto.randomUUID(),role:'assistant',content:answer(t.toLowerCase())}]);return}
++    if(!sb){setLog(l=>[...l,{id:crypto.randomUUID(),role:'assistant',content:'Supabase не настроен (.env).'}]);return}
++    setWait(true)
++    const {data,error}=await sb.from('chat_messages').insert({store_slug:cfg.slug,session_id:sid,role:'user',content:t.slice(0,500)}).select('id,role,content').single()
++    if(error)return setWait(false)
++    add(data as M)
++    const r=await sb.functions.invoke('assistant',{body:{store_slug:cfg.slug,session_id:sid}})
++    if(r.error){setWait(false);add({id:crypto.randomUUID(),role:'assistant',content:'Помощник временно недоступен. Позвоните: '+cfg.phone})}
++  }
++
+   return <>
+-    <button aria-label="Ассистент" onClick={()=>setOpen(!open)} className="fixed right-4 bottom-24 z-40 w-14 h-14 rounded-full bg-accent shadow-xl text-2xl">💬</button>
+-    {open&&<div className="fixed right-4 bottom-40 z-40 w-[min(22rem,calc(100vw-2rem))] glass p-4 max-h-[60vh] flex flex-col bg-black/70">
+-      <div className="font-medium mb-2">{title}</div>
+-      <div className="overflow-y-auto flex-1 space-y-2 text-sm">{log.map((m,i)=><div key={i} className={m.r==='u'?'text-right text-white/70':'text-white'}>{m.t}</div>)}</div>
+-      <div className="flex flex-wrap gap-2 my-2">{hints.map(h=><button key={h} onClick={()=>ask(h)} className="text-xs btn-glass !px-3 !py-1.5">{h}</button>)}</div>
+-      <input className="inp" value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>e.key==='Enter'&&ask(q)} placeholder="Ваш вопрос"/>
+-    </div>}</>
++    <button aria-label={title} onClick={()=>setOpen(true)} className="btn fixed right-4 bottom-28 z-30 !rounded-full !px-4 !py-3 shadow-xl">{title}</button>
++    {open&&<div className="sheet" onClick={()=>setOpen(false)}><div className="glass flex flex-col gap-3" style={{height:'80vh'}} onClick={e=>e.stopPropagation()} role="dialog" aria-label={title}>
++      <div className="flex justify-between items-center"><h2 className="display text-xl">{title}</h2><button className="btn-glass !py-2 !px-3" onClick={()=>setOpen(false)} aria-label="Закрыть">✕</button></div>
++      <div className="flex-1 overflow-y-auto flex flex-col gap-2">
++        {!log.length&&<p className="muted text-sm">Спросите про цены или свободное время.</p>}
++        {log.map(m=><div key={m.id} className={'bubble '+(m.role==='user'?'u':'a')}>{m.content}</div>)}
++        {wait&&<div className="bubble a muted">Помощник печатает…</div>}<div ref={end}/></div>
++      <div className="flex flex-wrap gap-2">{hints.map(h=><button key={h} onClick={()=>ask(h)} className="chip">{h}</button>)}</div>
++      <div className="flex gap-2"><input className="inp" value={q} maxLength={500} onChange={e=>setQ(e.target.value)} onKeyDown={e=>e.key==='Enter'&&ask(q)} placeholder="Ваш вопрос"/>
++      <button className="btn" disabled={wait} onClick={()=>ask(q)}>Отправить</button></div></div></div>}</>
+ }
+diff --git a/src/components/Client.tsx b/src/components/Client.tsx
+index a4f1a04..2f88b81 100644
+--- a/src/components/Client.tsx
++++ b/src/components/Client.tsx
+@@ -1,60 +1,73 @@
+ import {useEffect,useMemo,useState} from 'react'
+ import type {Cfg,Busy} from '../lib/types'
+-import {sb} from '../lib/supabase';import {fallbackImg} from '../lib/config'
+-import {slotsFor,nextFree,fmt,rub,isOff} from '../lib/slots';import Chat from './Chat'
++import {sb} from '../lib/supabase';import {fallbackImg,useTheme} from '../lib/config'
++import {slotsFor,fmt,rub,isOff} from '../lib/slots';import Chat from './Chat'
+ const KEY='my-booking'
+-export default function Client({cfg}:{cfg:Cfg}){
+-  const [busy,setBusy]=useState<Busy[]>([]),[svc,setSvc]=useState(cfg.services[0]),[day,setDay]=useState(()=>{const d=new Date();while(isOff(cfg,d))d.setDate(d.getDate()+1);return d})
+-  const [slot,setSlot]=useState<Date|null>(null),[f,setF]=useState({name:'',phone:'',car:''}),[msg,setMsg]=useState(''),[mine,setMine]=useState(()=>localStorage.getItem(KEY+cfg.slug))
+-  const load=()=>sb?.from('busy_slots').select('starts_at,ends_at').eq('store_slug',cfg.slug).gte('ends_at',new Date().toISOString()).then(r=>setBusy(r.data??[]))
+-  useEffect(()=>{load()},[])
+-  const slots=useMemo(()=>slotsFor(cfg,busy,day,svc?.duration??60),[busy,day,svc])
++const firstWorkday=(c:Cfg)=>{const d=new Date();while(isOff(c,d))d.setDate(d.getDate()+1);return d}
++
++function Book({cfg,busy,preset,onClose,onDone}:{cfg:Cfg;busy:Busy[];preset?:string;onClose:()=>void;onDone:(s:string)=>void}){
++  const [svc,setSvc]=useState(cfg.services.find(s=>s.id===preset)??cfg.services[0]),[day,setDay]=useState(()=>firstWorkday(cfg))
++  const [slot,setSlot]=useState<Date|null>(null),[f,setF]=useState({name:'',phone:'',car:''}),[msg,setMsg]=useState(''),[ok,setOk]=useState('')
++  const slots=useMemo(()=>slotsFor(cfg,busy,day,svc.duration),[busy,day,svc])
+   const days=useMemo(()=>[...Array(14)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()+i);return d}).filter(d=>!isOff(cfg,d)),[])
+-  const go=(id:string)=>document.getElementById(id)?.scrollIntoView({behavior:'smooth'})
+   async function submit(){
+     if(!slot||!f.name||!f.phone||!f.car)return setMsg('Заполните все поля и выберите время')
+     if(!sb)return setMsg('Supabase не настроен (.env)')
+-    const row={store_slug:cfg.slug,...f,service_name:svc.name,price:svc.price,starts_at:slot.toISOString(),ends_at:new Date(slot.getTime()+svc.duration*6e4).toISOString()}
+-    const {error}=await sb.from('bookings').insert(row)
++    const {error}=await sb.from('bookings').insert({store_slug:cfg.slug,...f,service_name:svc.name,price:svc.price,starts_at:slot.toISOString(),ends_at:new Date(slot.getTime()+svc.duration*6e4).toISOString()})
+     if(error)return setMsg('Не удалось записаться: '+error.message)
+-    const s=`${svc.name} — ${fmt(slot)}`;localStorage.setItem(KEY+cfg.slug,s);setMine(s);setMsg('Вы записаны: '+s);setSlot(null);load()
+-  }
+-  const answer=(q:string)=>{
+-    if(/ближайш|окно|свобод|когда/.test(q)){const t=nextFree(cfg,busy,svc.duration);return t?`Ближайшее окно: ${fmt(t)} (${svc.name}).`:'В ближайшие 2 недели свободных окон нет — позвоните: '+cfg.phone}
+-    const s=cfg.services.find(x=>q.split(/\s+/).some(w=>w.length>3&&x.name.toLowerCase().includes(w.slice(0,5))))
+-    if(/стоит|цен|сколько|прайс/.test(q))return s?`${s.name}: ${rub(s.price)}, около ${s.duration} мин.`:'Услуги: '+cfg.services.map(x=>`${x.name} — ${rub(x.price)}`).join('; ')
+-    if(/найти|адрес|где|как добраться/.test(q))return `${cfg.address}. Телефон: ${cfg.phone}.`
+-    if(/график|работа|часы/.test(q))return `Работаем ${cfg.hours.open}–${cfg.hours.close}.`
+-    return 'Я знаю про услуги, цены, график и свободное время. Спросите, например: «Когда ближайшее окно?»'
++    const s=`${svc.name} — ${fmt(slot)}`;setOk(s);onDone(s)
+   }
+-  const hero=cfg.hero||fallbackImg(cfg.accent,cfg.name)
+-  return <div className="max-w-2xl mx-auto pb-32">
+-    <header className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 bg-black/50 backdrop-blur-xl border-b border-white/10">
+-      {cfg.logo?<img src={cfg.logo} alt="" className="w-9 h-9 rounded-xl"/>:<div className="w-9 h-9 rounded-xl bg-accent grid place-items-center font-bold">{cfg.name[0]}</div>}
+-      <div className="flex-1 min-w-0"><div className="font-medium truncate">{cfg.name}</div>{cfg.demo&&<div className="text-xs text-white/50">Демо-версия системы</div>}</div>
+-      <a href={'tel:'+cfg.phone} className="btn !py-2 !px-4 text-sm">Позвонить</a></header>
+-    <section className="relative m-4 rounded-[2rem] overflow-hidden min-h-[22rem] flex items-end">
+-      <img src={hero} alt="" className="absolute inset-0 w-full h-full object-cover" onError={e=>{(e.target as HTMLImageElement).src=fallbackImg(cfg.accent,cfg.name)}}/>
+-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"/>
+-      <div className="relative p-6"><h1 className="text-4xl font-semibold tracking-tight">{cfg.name}</h1><p className="text-white/70 mt-2 mb-5">{cfg.tagline}</p>
+-        <button className="btn-glass" onClick={()=>go('book')}>Записаться в студию</button></div></section>
+-    <section id="services" className="px-4 mt-8"><h2 className="text-2xl mb-3">Услуги и цены</h2><div className="glass divide-y divide-white/10">
+-      {cfg.services.map(s=><div key={s.id} className="flex justify-between p-4"><div>{s.name}<div className="text-sm text-white/50">~{s.duration} мин</div></div><div className="text-accent font-medium">{rub(s.price)}</div></div>)}</div></section>
+-    <section className="px-4 mt-8"><h2 className="text-2xl mb-3">Наши работы</h2><div className="grid grid-cols-2 gap-3">
+-      {(cfg.gallery.length?cfg.gallery:[{img:'',title:'Скоро здесь',text:'Фото работ'}]).map((g,i)=><figure key={i} className="glass overflow-hidden">
+-        <img src={g.img||fallbackImg(cfg.accent,g.title)} alt={g.title} className="aspect-[4/3] object-cover w-full" loading="lazy"/><figcaption className="p-3 text-sm"><b>{g.title}</b><div className="text-white/50">{g.text}</div></figcaption></figure>)}</div></section>
+-    <section id="book" className="px-4 mt-8"><h2 className="text-2xl mb-3">Запись</h2><div className="glass p-4 space-y-4">
+-      <select className="inp" value={svc.id} onChange={e=>{setSvc(cfg.services.find(s=>s.id===e.target.value)!);setSlot(null)}}>{cfg.services.map(s=><option key={s.id} value={s.id} className="text-black">{s.name} — {rub(s.price)}</option>)}</select>
+-      <div className="flex gap-2 overflow-x-auto pb-1">{days.map(d=><button key={+d} onClick={()=>{setDay(d);setSlot(null)}} className={`shrink-0 px-4 py-2 rounded-2xl border ${d.toDateString()===day.toDateString()?'bg-accent border-accent':'border-white/10 bg-white/5'}`}>{d.toLocaleDateString('ru-RU',{weekday:'short',day:'numeric'})}</button>)}</div>
+-      <div className="grid grid-cols-4 gap-2">{slots.map(({t,free})=><button key={+t} disabled={!free} onClick={()=>setSlot(t)} className={`py-2 rounded-xl text-sm border ${slot&&+slot===+t?'bg-accent border-accent':'border-white/10 bg-white/5'} disabled:opacity-25 disabled:line-through`}>{t.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</button>)}</div>
+-      {!slots.length&&<p className="text-white/50 text-sm">В этот день студия не работает.</p>}
++  return <div className="sheet" onClick={onClose}><div className="glass space-y-4" onClick={e=>e.stopPropagation()} role="dialog" aria-label="Запись">
++    <div className="flex justify-between items-center"><h2 className="display text-2xl">{ok?'Вы записаны':'Запись на ремонт'}</h2><button className="btn-glass !py-2 !px-3" onClick={onClose} aria-label="Закрыть">✕</button></div>
++    {ok?<p className="muted">{ok}. Это демо — реальная запись не обрабатывается.</p>:<>
++      <select className="inp" value={svc.id} onChange={e=>{setSvc(cfg.services.find(s=>s.id===e.target.value)!);setSlot(null)}}>{cfg.services.map(s=><option key={s.id} value={s.id}>{s.name} — {rub(s.price)}</option>)}</select>
++      <div className="flex gap-2 overflow-x-auto pb-1">{days.map(d=><button key={+d} className="chip" aria-pressed={d.toDateString()===day.toDateString()} onClick={()=>{setDay(d);setSlot(null)}}>{d.toLocaleDateString('ru-RU',{weekday:'short',day:'numeric'})}</button>)}</div>
++      <div className="grid grid-cols-4 gap-2">{slots.map(({t,free})=><button key={+t} className="chip !shrink" disabled={!free} aria-pressed={!!slot&&+slot===+t} onClick={()=>setSlot(t)}>{t.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</button>)}</div>
++      {!slots.length&&<p className="muted text-sm">В этот день сервис не работает.</p>}
+       <input className="inp" placeholder="Имя" value={f.name} onChange={e=>setF({...f,name:e.target.value})}/>
+       <input className="inp" placeholder="Телефон" inputMode="tel" value={f.phone} onChange={e=>setF({...f,phone:e.target.value})}/>
+-      <input className="inp" placeholder="Марка и модель авто" value={f.car} onChange={e=>setF({...f,car:e.target.value})}/>
+-      <button className="btn w-full" onClick={submit}>Подтвердить запись</button>{msg&&<p className="text-sm text-white/70">{msg}</p>}</div></section>
+-    <section id="mine" className="px-4 mt-8"><h2 className="text-2xl mb-3">Моя запись</h2><div className="glass p-4">{mine??'Пока нет записей на этом устройстве.'}</div>
+-      <p className="text-sm text-white/50 mt-4">{cfg.address} · {cfg.hours.open}–{cfg.hours.close}</p></section>
+-    <Chat title="Ассистент студии" hints={['Когда ближайшее окно?','Сколько стоит полировка?','Как найти студию?']} answer={answer}/>
+-    <nav className="fixed bottom-0 inset-x-0 z-30 mx-auto max-w-2xl m-3 glass flex justify-around py-3 bg-black/50" style={{marginBottom:'max(.75rem,env(safe-area-inset-bottom))',marginInline:'.75rem'}}>
+-      {[['Главная','top'],['Услуги','services'],['Моя запись','mine']].map(([l,id])=><button key={id} onClick={()=>id==='top'?scrollTo({top:0,behavior:'smooth'}):go(id)}>{l}</button>)}</nav></div>
++      <input className="inp" placeholder="Авто: марка, модель, год" value={f.car} onChange={e=>setF({...f,car:e.target.value})}/>
++      <button className="btn w-full" onClick={submit}>Записаться</button>{msg&&<p className="text-sm accent-msg" style={{color:'rgb(var(--accent))'}}>{msg}</p>}</>}
++  </div></div>
++}
++
++export default function Client({cfg}:{cfg:Cfg}){
++  const [tab,setTab]=useState<'home'|'services'>('home'),[book,setBook]=useState<string|null>(null),[busy,setBusy]=useState<Busy[]>([])
++  const [mine,setMine]=useState(()=>localStorage.getItem(KEY+cfg.slug)),[theme,toggle]=useTheme()
++  const load=()=>{sb?.from('busy_slots').select('starts_at,ends_at').eq('store_slug',cfg.slug).gte('ends_at',new Date().toISOString()).then(r=>setBusy(r.data??[]))}
++  useEffect(()=>{load()},[])
++  const minPrice=Math.min(...cfg.services.map(s=>s.price))
++  const hero=cfg.hero||fallbackImg(cfg.accent,cfg.name)
++  return <div className="max-w-2xl mx-auto pb-36">
++    {cfg.demo&&<div className="demo">Демо-версия сайта. Не является реальной службой записи</div>}
++    <header className="flex items-center gap-3 px-4 py-3">
++      {cfg.logo?<img src={cfg.logo} alt="" className="w-9 h-9 rounded-xl"/>:<div className="w-9 h-9 rounded-xl bg-accent grid place-items-center font-bold text-white">{cfg.name[0]}</div>}
++      <b className="display flex-1 truncate">{cfg.name}</b>
++      <button className="btn-glass !py-2 !px-3 text-sm" onClick={toggle} aria-label="Сменить тему">{theme==='dark'?'☀︎ Светлая':'☾ Тёмная'}</button>
++      <a href={'tel:'+cfg.phone} className="btn !py-2 !px-4 text-sm">Позвонить</a></header>
++
++    {tab==='home'?<main className="px-4 space-y-6">
++      <section className="relative rounded-[2rem] overflow-hidden min-h-[20rem] flex items-end">
++        <img src={hero} alt="" className="absolute inset-0 w-full h-full object-cover" onError={e=>{(e.target as HTMLImageElement).src=fallbackImg(cfg.accent,cfg.name)}}/>
++        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"/>
++        <div className="relative p-6 text-white"><h1 className="display text-3xl">{cfg.tagline}</h1>
++          <button className="btn mt-5" onClick={()=>setBook('')}>Записаться на ремонт</button></div></section>
++      <div className="glass p-4 grid grid-cols-3 gap-2 text-center">
++        {[[String(cfg.services.length),'услуг'],['от '+rub(minPrice),'цены'],[cfg.hours.open+'–'+cfg.hours.close,'график']].map(([v,l])=><div key={l}><div className="display text-lg">{v}</div><div className="muted text-xs">{l}</div></div>)}</div>
++      {cfg.gallery.length>0&&<section><h2 className="display text-xl mb-3">Акции</h2><div className="glass px-4">
++        {cfg.gallery.map((g,i)=><div className="row" key={i}><b>{g.title}</b><span className="muted text-sm text-right">{g.text}</span></div>)}</div></section>}
++      <section><h2 className="display text-xl mb-3">Моя запись</h2><div className="glass p-4">{mine??'Пока нет записей на этом устройстве.'}</div>
++        <p className="muted text-sm mt-3">{cfg.address}</p></section>
++    </main>:<main className="px-4"><h1 className="display text-3xl py-3">Услуги и цены</h1>
++      <div className="glass px-4">{cfg.services.map(s=><button key={s.id} className="row" onClick={()=>setBook(s.id)}>
++        <span><b>{s.name}</b><br/><span className="muted text-sm">{s.desc?s.desc+' · ':''}~{s.duration} мин</span></span>
++        <b className="whitespace-nowrap" style={{color:'rgb(var(--accent))'}}>{rub(s.price)}</b></button>)}</div></main>}
++
++    <Chat cfg={cfg} hints={['Есть ли окно после 18:00?','Сколько стоит диагностика?']}/>
++    <nav className="nav glass" aria-label="Основная навигация">
++      <button aria-current={tab==='home'?'page':undefined} onClick={()=>setTab('home')}>Главная</button>
++      <button className="fab" onClick={()=>setBook('')}>+ Записаться</button>
++      <button aria-current={tab==='services'?'page':undefined} onClick={()=>setTab('services')}>Услуги</button></nav>
++    {book!==null&&<Book cfg={cfg} busy={busy} preset={book||undefined} onClose={()=>setBook(null)} onDone={s=>{localStorage.setItem(KEY+cfg.slug,s);setMine(s);load()}}/>}
++  </div>
+ }
+diff --git a/src/index.css b/src/index.css
+index 010a05d..f205e27 100644
+--- a/src/index.css
++++ b/src/index.css
+@@ -1,9 +1,32 @@
+ @tailwind base;@tailwind components;@tailwind utilities;
+-:root{--accent:70 144 255}
+-body{background:#0A0A0C;color:#fff;font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding-bottom:env(safe-area-inset-bottom)}
++/* ЕДИНЫЙ источник палитры. --accent задаётся для каждой студии из config.json (r g b) */
++:root,:root[data-theme=dark]{--accent:255 106 26;--bg:#0c0d10;--bg2:#14161b;--fg:#f4f4f1;--muted:#9a9ca3;--glass:rgba(28,30,36,.55);--line:rgba(255,255,255,.12);color-scheme:dark}
++:root[data-theme=light]{--bg:#f3f2ef;--bg2:#fff;--fg:#15161a;--muted:#6b6d75;--glass:rgba(255,255,255,.72);--line:rgba(0,0,0,.1);color-scheme:light}
++body{margin:0;background:radial-gradient(60% 40% at 85% 0,rgb(var(--accent)/.25),transparent 70%),var(--bg);background-attachment:fixed;color:var(--fg);font-family:Manrope,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+ @layer components{
+-.glass{@apply bg-white/[.06] backdrop-blur-xl border border-white/10 rounded-3xl}
+-.btn{@apply rounded-2xl px-5 py-3 font-medium bg-accent/90 hover:bg-accent text-white transition active:scale-[.98] disabled:opacity-40}
+-.btn-glass{@apply rounded-2xl px-5 py-3 font-medium bg-white/10 backdrop-blur-xl border border-white/20 hover:bg-white/20 transition}
+-.inp{@apply w-full rounded-2xl bg-white/[.06] border border-white/10 px-4 py-3 outline-none focus:border-accent placeholder:text-white/30}}
+-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
++.display{font-family:Unbounded,Manrope,sans-serif;letter-spacing:-.02em;line-height:1.08}
++.muted{color:var(--muted)}
++.glass{background:var(--glass);border:1px solid var(--line);border-radius:1.5rem;backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%)}
++.row{display:flex;justify-content:space-between;gap:1rem;padding:.9rem 0;border-top:1px solid var(--line);text-align:left;width:100%}
++.row:first-child{border-top:0}
++.btn{@apply rounded-2xl px-5 py-3 font-medium bg-accent text-white transition active:scale-[.98] disabled:opacity-40}
++.btn-glass{@apply rounded-2xl px-5 py-3 font-medium transition active:scale-[.98]}
++.btn-glass{background:var(--glass);border:1px solid var(--line);color:var(--fg);backdrop-filter:blur(12px)}
++.inp{@apply w-full rounded-2xl px-4 py-3 outline-none focus:border-accent}
++.inp{background:var(--bg2);border:1px solid var(--line);color:var(--fg)}
++.chip{@apply shrink-0 px-4 py-2 rounded-xl text-sm disabled:opacity-30 disabled:line-through}
++.chip{background:var(--bg2);border:1px solid var(--line);color:var(--fg)}
++.chip[aria-pressed=true]{@apply bg-accent border-accent text-white}
++.demo{@apply bg-accent text-white text-center text-xs font-semibold py-1.5 px-2}
++.nav{@apply fixed bottom-0 inset-x-3 z-30 mx-auto max-w-2xl flex items-center justify-around py-2;margin-bottom:max(.75rem,env(safe-area-inset-bottom))}
++.nav>button:not(.fab){@apply px-4 py-2 font-medium muted}
++.nav>button[aria-current=page]{color:var(--fg)}
++.fab{@apply btn !px-5 !py-3.5 -mt-8;box-shadow:0 10px 30px rgb(var(--accent)/.5)}
++.sheet{@apply fixed inset-0 z-40 flex items-end justify-center;background:rgba(0,0,0,.55);animation:fade .2s}
++.sheet>.glass{@apply w-full max-w-2xl p-5 overflow-y-auto;max-height:92vh;border-radius:1.75rem 1.75rem 0 0;background:var(--bg2);animation:up .25s}
++.bubble{@apply px-3.5 py-2 rounded-2xl max-w-[85%] whitespace-pre-wrap text-sm}
++.bubble.u{@apply self-end bg-accent text-white}
++.bubble.a{@apply self-start;background:var(--bg2);border:1px solid var(--line)}}
++@keyframes up{from{transform:translateY(40px);opacity:0}}@keyframes fade{from{opacity:0}}
++:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:2px}
++@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+diff --git a/src/lib/config.ts b/src/lib/config.ts
+index bcb5a40..80ecba7 100644
+--- a/src/lib/config.ts
++++ b/src/lib/config.ts
+@@ -1,5 +1,12 @@
++import {useEffect,useState} from 'react'
+ import type { Cfg } from './types'
+ const mods=import.meta.glob('../services/*/config.json',{eager:true}) as Record<string,{default:Cfg}>
+ export const stores:Record<string,Cfg>=Object.fromEntries(Object.values(mods).map(m=>[m.default.slug,m.default]))
+ export const hexToRgb=(h:string)=>{const n=parseInt(h.replace('#',''),16);return `${n>>16} ${(n>>8)&255} ${n&255}`}
+ export const fallbackImg=(c:string,t='')=>`data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 500'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='${c}' stop-opacity='.5'/><stop offset='1' stop-color='#0A0A0C'/></linearGradient></defs><rect width='800' height='500' fill='url(#g)'/><text x='400' y='265' fill='white' fill-opacity='.35' font-size='38' text-anchor='middle' font-family='sans-serif'>${t}</text></svg>`)}`
++
++export function useTheme(){
++  const [t,setT]=useState<'dark'|'light'>(()=>(localStorage.getItem('theme') as 'dark'|'light')||'dark')
++  useEffect(()=>{document.documentElement.dataset.theme=t;localStorage.setItem('theme',t)},[t])
++  return [t,()=>setT(t==='dark'?'light':'dark')] as const
++}
+diff --git a/src/lib/types.ts b/src/lib/types.ts
+index f12d2dc..327c64c 100644
+--- a/src/lib/types.ts
++++ b/src/lib/types.ts
+@@ -1,4 +1,6 @@
+-export type Svc={id:string;name:string;price:number;duration:number}
++export type Svc={id:string;name:string;price:number;duration:number;desc?:string}
+ export type Cfg={slug:string;name:string;tagline:string;logo:string;hero:string;accent:string;demo:boolean;phone:string;messenger:string;address:string;boxes:number;hours:{open:string;close:string};daysOff:number[];services:Svc[];gallery:{img:string;title:string;text:string}[]}
+-export type Booking={id:string;store_slug:string;name:string;phone:string;car:string;service_name:string;price:number;starts_at:string;ends_at:string;status:'new'|'done'|'cancelled'}
++export type Status='new'|'confirmed'|'in_repair'|'ready'|'done'|'cancelled'
++export type Booking={id:string;store_slug:string;name:string;phone:string;car:string;service_name:string;price:number;starts_at:string;ends_at:string;status:Status}
+ export type Busy={starts_at:string;ends_at:string}
++export const STATUS:Record<Exclude<Status,'cancelled'>,string>={new:'Новая',confirmed:'Подтверждена',in_repair:'В ремонте',ready:'Готово к выдаче',done:'Выдано'}
+diff --git a/src/main.tsx b/src/main.tsx
+index 4af209f..a9f1c09 100644
+--- a/src/main.tsx
++++ b/src/main.tsx
+@@ -1,8 +1,9 @@
+ import React from 'react';import {createRoot} from 'react-dom/client';import './index.css'
+ import {stores,hexToRgb} from './lib/config';import Client from './components/Client';import Admin from './components/Admin'
++document.documentElement.dataset.theme=localStorage.getItem('theme')||'dark'
+ function App(){
+   const [,slug,sub]=location.pathname.split('/'); const cfg=stores[slug]
+-  if(!cfg)return <div className="p-8 max-w-md mx-auto"><h1 className="text-2xl mb-4">Выберите студию</h1>{Object.values(stores).map(s=><a key={s.slug} href={'/'+s.slug} className="block glass p-4 mb-3">{s.name}</a>)}</div>
++  if(!cfg)return <div className="p-8 max-w-md mx-auto"><h1 className="display text-2xl mb-4">Выберите студию</h1>{Object.values(stores).map(s=><a key={s.slug} href={'/'+s.slug} className="block glass p-4 mb-3">{s.name}</a>)}</div>
+   document.documentElement.style.setProperty('--accent',hexToRgb(cfg.accent));document.title=cfg.name
+   return sub==='admin'?<Admin cfg={cfg}/>:<Client cfg={cfg}/>
+ }
+diff --git a/src/services/_template.json b/src/services/_template.json
+index f7fc174..41e9a80 100644
+--- a/src/services/_template.json
++++ b/src/services/_template.json
+@@ -1,4 +1,4 @@
+-{"slug":"service-N","name":"Название","tagline":"Короткое описание","logo":"","hero":"","accent":"#4690FF","demo":false,
++{"slug":"service-N","name":"Название","tagline":"Короткое описание","logo":"","hero":"","accent":"#4690FF","demo":true,
+ "phone":"+7 000 000-00-00","messenger":"https://t.me/username","address":"Город, улица, дом","boxes":2,
+ "hours":{"open":"09:00","close":"20:00"},"daysOff":[0],
+ "services":[{"id":"wash","name":"Мойка","price":1500,"duration":60}],"gallery":[{"img":"","title":"Работа","text":"Описание"}]}
+diff --git a/src/services/service-1/config.json b/src/services/service-1/config.json
+index bada986..be0c33b 100644
+--- a/src/services/service-1/config.json
++++ b/src/services/service-1/config.json
+@@ -1,5 +1,11 @@
+-{"slug":"service-1","name":"Apex Detailing","tagline":"Керамика, полировка и PPF. Работаем с премиум-классом.","logo":"","hero":"","accent":"#4690FF","demo":true,
+-"phone":"+7 900 000-00-01","messenger":"https://t.me/apex_demo","address":"Москва, ул. Автозаводская, 12","boxes":2,
++{"slug":"service-1","name":"Fast Repair","tagline":"Ремонт без сюрпризов: запись за минуту, статус в телефоне","logo":"","hero":"","accent":"#FF6A1A","demo":true,
++"phone":"+7 900 000-00-01","messenger":"https://t.me/fastrepair_demo","address":"Москва, ул. Автозаводская, 12","boxes":2,
+ "hours":{"open":"09:00","close":"20:00"},"daysOff":[0],
+-"services":[{"id":"wash","name":"Детейлинг-мойка","price":3500,"duration":90},{"id":"polish","name":"Полировка кузова","price":18000,"duration":240},{"id":"ceramic","name":"Керамическое покрытие","price":45000,"duration":480},{"id":"interior","name":"Химчистка салона","price":12000,"duration":180}],
+-"gallery":[{"img":"","title":"BMW M4","text":"Полировка и керамика"},{"img":"","title":"Porsche 911","text":"Защитная плёнка капота"}]}
++"services":[
++{"id":"diag","name":"Диагностика","price":1500,"duration":60,"desc":"Компьютерная диагностика и осмотр ходовой"},
++{"id":"oil","name":"Замена масла и фильтров","price":2800,"duration":60,"desc":"Масло, масляный и воздушный фильтры"},
++{"id":"brakes","name":"Тормозная система","price":4500,"duration":120,"desc":"Колодки, диски, прокачка"},
++{"id":"chassis","name":"Ходовая часть","price":5200,"duration":180,"desc":"Рычаги, сайлентблоки, амортизаторы"},
++{"id":"tires","name":"Шиномонтаж","price":2400,"duration":60,"desc":"Сезонная смена, балансировка"},
++{"id":"body","name":"Кузовной ремонт","price":9000,"duration":240,"desc":"Рихтовка и покраска элементов"}],
++"gallery":[{"img":"","title":"Диагностика бесплатно","text":"при ремонте ходовой от 5 000 ₽"},{"img":"","title":"Сезонная замена шин","text":"скидка 15% до конца ноября"}]}
+diff --git a/supabase/functions/assistant/index.ts b/supabase/functions/assistant/index.ts
+new file mode 100644
+index 0000000..f430d21
+--- /dev/null
++++ b/supabase/functions/assistant/index.ts
+@@ -0,0 +1,54 @@
++// Edge Function «Помощник». Ключ OpenRouter и системный промпт живут ТОЛЬКО здесь (в админке не редактируются).
++// Деплой: supabase functions deploy assistant && supabase secrets set OPENROUTER_API_KEY=sk-or-...
++import { createClient } from 'npm:@supabase/supabase-js@2'
++
++const MODEL = Deno.env.get('OPENROUTER_MODEL') ?? 'openai/gpt-4o-mini'
++const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }
++const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { ...cors, 'Content-Type': 'application/json' } })
++
++const SYSTEM = (name: string, extra: string) => `Ты — «Помощник», ассистент автосервиса «${name}». Отвечай по-русски, кратко, дружелюбно.
++Это демо-версия: реальную запись ты не создаёшь — предложи нажать «+ Записаться».
++Используй ТОЛЬКО данные ниже (цены, услуги, график, занятость). Если данных нет — честно скажи и предложи позвонить.
++Свободное окно: рабочее время, не выходной, и число пересекающихся записей меньше числа боксов. Длительность берётся из услуги.
++Все времена в данных указаны в UTC; в ответе переводи в часовой пояс Europe/Moscow (UTC+3), если студия не указала иное.
++
++${extra}`
++
++Deno.serve(async req => {
++  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
++  const { store_slug, session_id } = await req.json().catch(() => ({}))
++  if (!store_slug || !session_id) return json({ error: 'bad request' }, 400)
++  const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
++
++  const [store, svc, busy, hist] = await Promise.all([
++    sb.from('stores').select('name,phone,address,settings').eq('slug', store_slug).single(),
++    sb.from('services').select('name,price,duration').eq('store_slug', store_slug).order('sort'),
++    sb.from('bookings').select('starts_at,ends_at').eq('store_slug', store_slug).neq('status', 'cancelled')
++      .gte('ends_at', new Date().toISOString()).order('starts_at'),
++    sb.from('chat_messages').select('role,content').eq('session_id', session_id).eq('store_slug', store_slug)
++      .order('created_at', { ascending: false }).limit(20),
++  ])
++  if (!store.data) return json({ error: 'unknown store' }, 404)
++  const history = (hist.data ?? []).reverse()
++  if (history.at(-1)?.role !== 'user') return json({ ok: true, skipped: true }) // защита от повторных вызовов
++
++  const s = store.data.settings ?? {}
++  const context = `Сейчас: ${new Date().toISOString()} (UTC).
++Адрес: ${store.data.address ?? '—'}. Телефон: ${store.data.phone ?? '—'}.
++График: ${s.open ?? '09:00'}–${s.close ?? '20:00'}, выходные (0=вс): ${(s.daysOff ?? []).join(',') || 'нет'}, боксов: ${s.boxes ?? 1}.
++Услуги: ${(svc.data ?? []).map(x => `${x.name} — от ${x.price} ₽, ~${x.duration} мин`).join('; ') || 'нет данных'}.
++Занятые интервалы (начало → конец, UTC): ${(busy.data ?? []).map(b => `${b.starts_at} → ${b.ends_at}`).join('; ') || 'нет, всё свободно'}.`
++
++  let content = 'Сейчас не могу ответить. Попробуйте чуть позже или позвоните в сервис.'
++  try {
++    const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
++      method: 'POST',
++      headers: { Authorization: `Bearer ${Deno.env.get('OPENROUTER_API_KEY')}`, 'Content-Type': 'application/json' },
++      body: JSON.stringify({ model: MODEL, max_tokens: 400, messages: [{ role: 'system', content: SYSTEM(store.data.name, context) }, ...history] }),
++    })
++    content = (await r.json()).choices?.[0]?.message?.content?.slice(0, 500) ?? content
++  } catch (_) { /* остаётся сообщение по умолчанию */ }
++
++  await sb.from('chat_messages').insert({ store_slug, session_id, role: 'assistant', content })
++  return json({ ok: true })
++})
+diff --git a/supabase/migrations/002_chat_and_cancel.sql b/supabase/migrations/002_chat_and_cancel.sql
+new file mode 100644
+index 0000000..8ce2f07
+--- /dev/null
++++ b/supabase/migrations/002_chat_and_cancel.sql
+@@ -0,0 +1,55 @@
++-- Миграция для уже развёрнутой БД (идемпотентна; на пустой БД выполняется после schema.sql)
++
++-- 1) Новые статусы ремонта
++alter table bookings drop constraint if exists bookings_status_check;
++alter table bookings add constraint bookings_status_check
++  check (status in ('new','confirmed','in_repair','ready','done','cancelled'));
++
++-- 2) ПРАВИЛО: статус 'cancelled' => запись автоматически удаляется
++create or replace function delete_cancelled_booking() returns trigger
++language plpgsql as $$
++begin
++  delete from bookings where id = new.id;
++  return null;
++end $$;
++drop trigger if exists trg_delete_cancelled on bookings;
++create trigger trg_delete_cancelled
++  after insert or update of status on bookings
++  for each row when (new.status = 'cancelled')
++  execute function delete_cancelled_booking();
++delete from bookings where status = 'cancelled'; -- чистим старую историю
++
++-- 3) Каталог услуг (для контекста Помощника)
++create table if not exists services(
++  store_slug text not null references stores(slug) on delete cascade,
++  id text not null, name text not null, price int not null, duration int not null, sort int default 0,
++  primary key(store_slug,id));
++alter table services enable row level security;
++drop policy if exists "services read" on services;
++create policy "services read" on services for select to anon using (true);
++
++-- 4) Чат «Помощника» + Realtime
++create table if not exists chat_messages(
++  id uuid primary key default gen_random_uuid(),
++  store_slug text not null references stores(slug) on delete cascade,
++  session_id text not null,
++  role text not null check (role in ('user','assistant')),
++  content text not null check (length(content) <= 500),
++  created_at timestamptz default now());
++create index if not exists chat_session_idx on chat_messages(session_id, created_at);
++alter table chat_messages enable row level security;
++drop policy if exists "chat read" on chat_messages;
++drop policy if exists "chat write" on chat_messages;
++-- ДЕМО: чтение открыто (session_id — случайный UUID). Не храните в чате персональные данные.
++create policy "chat read" on chat_messages for select to anon using (true);
++create policy "chat write" on chat_messages for insert to anon with check (role = 'user');
++do $$ begin alter publication supabase_realtime add table chat_messages;
++exception when duplicate_object then null; end $$;
++
++-- 5) Данные service-1 (график/боксы нужны Помощнику). Выполнится, если студия уже создана в stores
++update stores set settings = '{"open":"09:00","close":"20:00","boxes":2,"daysOff":[0]}' where slug = 'service-1';
++insert into services(store_slug,id,name,price,duration,sort)
++select 'service-1', v.id, v.name, v.price, v.duration, v.sort from stores s,
++ (values ('diag','Диагностика',1500,60,1),('oil','Замена масла и фильтров',2800,60,2),('brakes','Тормозная система',4500,120,3),
++         ('chassis','Ходовая часть',5200,180,4),('tires','Шиномонтаж',2400,60,5),('body','Кузовной ремонт',9000,240,6)) as v(id,name,price,duration,sort)
++where s.slug = 'service-1' on conflict do nothing;
+diff --git a/supabase/schema.sql b/supabase/schema.sql
+index ce57886..1981ce9 100644
+--- a/supabase/schema.sql
++++ b/supabase/schema.sql
+@@ -22,3 +22,60 @@ create function admin_add(s text,p text,n text,ph text,c text,sv text,pr int,a t
+ begin if not _ok(s,p) then raise exception 'denied'; end if; insert into bookings(store_slug,name,phone,car,service_name,price,starts_at,ends_at) values(s,n,ph,c,sv,pr,a,e); end$$;
+ grant execute on function admin_list,admin_set_status,admin_move,admin_add,_ok to anon;
+ -- пример: insert into stores(slug,name,admin_hash) values('service-1','Demo Detailing',crypt('ваш_пароль',gen_salt('bf')));
++
++-- ===== 002: чат, отмена-удаление, услуги =====
++-- Миграция для уже развёрнутой БД (идемпотентна; на пустой БД выполняется после schema.sql)
++
++-- 1) Новые статусы ремонта
++alter table bookings drop constraint if exists bookings_status_check;
++alter table bookings add constraint bookings_status_check
++  check (status in ('new','confirmed','in_repair','ready','done','cancelled'));
++
++-- 2) ПРАВИЛО: статус 'cancelled' => запись автоматически удаляется
++create or replace function delete_cancelled_booking() returns trigger
++language plpgsql as $$
++begin
++  delete from bookings where id = new.id;
++  return null;
++end $$;
++drop trigger if exists trg_delete_cancelled on bookings;
++create trigger trg_delete_cancelled
++  after insert or update of status on bookings
++  for each row when (new.status = 'cancelled')
++  execute function delete_cancelled_booking();
++delete from bookings where status = 'cancelled'; -- чистим старую историю
++
++-- 3) Каталог услуг (для контекста Помощника)
++create table if not exists services(
++  store_slug text not null references stores(slug) on delete cascade,
++  id text not null, name text not null, price int not null, duration int not null, sort int default 0,
++  primary key(store_slug,id));
++alter table services enable row level security;
++drop policy if exists "services read" on services;
++create policy "services read" on services for select to anon using (true);
++
++-- 4) Чат «Помощника» + Realtime
++create table if not exists chat_messages(
++  id uuid primary key default gen_random_uuid(),
++  store_slug text not null references stores(slug) on delete cascade,
++  session_id text not null,
++  role text not null check (role in ('user','assistant')),
++  content text not null check (length(content) <= 500),
++  created_at timestamptz default now());
++create index if not exists chat_session_idx on chat_messages(session_id, created_at);
++alter table chat_messages enable row level security;
++drop policy if exists "chat read" on chat_messages;
++drop policy if exists "chat write" on chat_messages;
++-- ДЕМО: чтение открыто (session_id — случайный UUID). Не храните в чате персональные данные.
++create policy "chat read" on chat_messages for select to anon using (true);
++create policy "chat write" on chat_messages for insert to anon with check (role = 'user');
++do $$ begin alter publication supabase_realtime add table chat_messages;
++exception when duplicate_object then null; end $$;
++
++-- 5) Данные service-1 (график/боксы нужны Помощнику). Выполнится, если студия уже создана в stores
++update stores set settings = '{"open":"09:00","close":"20:00","boxes":2,"daysOff":[0]}' where slug = 'service-1';
++insert into services(store_slug,id,name,price,duration,sort)
++select 'service-1', v.id, v.name, v.price, v.duration, v.sort from stores s,
++ (values ('diag','Диагностика',1500,60,1),('oil','Замена масла и фильтров',2800,60,2),('brakes','Тормозная система',4500,120,3),
++         ('chassis','Ходовая часть',5200,180,4),('tires','Шиномонтаж',2400,60,5),('body','Кузовной ремонт',9000,240,6)) as v(id,name,price,duration,sort)
++where s.slug = 'service-1' on conflict do nothing;
+-- 
+2.43.0
+
