@@ -1,5 +1,11 @@
-{"slug":"service-1","name":"Apex Detailing","tagline":"Керамика, полировка и PPF. Работаем с премиум-классом.","logo":"","hero":"","accent":"#4690FF","demo":true,
-"phone":"+7 900 000-00-01","messenger":"https://t.me/apex_demo","address":"Москва, ул. Автозаводская, 12","boxes":2,
+{"slug":"service-1","name":"Fast Repair","tagline":"Ремонт без сюрпризов: запись за минуту, статус в телефоне","logo":"","hero":"","accent":"#FF6A1A","demo":true,
+"phone":"+7 900 000-00-01","messenger":"https://t.me/fastrepair_demo","address":"Москва, ул. Автозаводская, 12","boxes":2,
 "hours":{"open":"09:00","close":"20:00"},"daysOff":[0],
-"services":[{"id":"wash","name":"Детейлинг-мойка","price":3500,"duration":90},{"id":"polish","name":"Полировка кузова","price":18000,"duration":240},{"id":"ceramic","name":"Керамическое покрытие","price":45000,"duration":480},{"id":"interior","name":"Химчистка салона","price":12000,"duration":180}],
-"gallery":[{"img":"","title":"BMW M4","text":"Полировка и керамика"},{"img":"","title":"Porsche 911","text":"Защитная плёнка капота"}]}
+"services":[
+{"id":"diag","name":"Диагностика","price":1500,"duration":60,"desc":"Компьютерная диагностика и осмотр ходовой"},
+{"id":"oil","name":"Замена масла и фильтров","price":2800,"duration":60,"desc":"Масло, масляный и воздушный фильтры"},
+{"id":"brakes","name":"Тормозная система","price":4500,"duration":120,"desc":"Колодки, диски, прокачка"},
+{"id":"chassis","name":"Ходовая часть","price":5200,"duration":180,"desc":"Рычаги, сайлентблоки, амортизаторы"},
+{"id":"tires","name":"Шиномонтаж","price":2400,"duration":60,"desc":"Сезонная смена, балансировка"},
+{"id":"body","name":"Кузовной ремонт","price":9000,"duration":240,"desc":"Рихтовка и покраска элементов"}],
+"gallery":[{"img":"","title":"Диагностика бесплатно","text":"при ремонте ходовой от 5 000 ₽"},{"img":"","title":"Сезонная замена шин","text":"скидка 15% до конца ноября"}]}

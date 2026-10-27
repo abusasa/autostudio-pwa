@@ -1,4 +1,4 @@
-{"slug":"service-N","name":"Название","tagline":"Короткое описание","logo":"","hero":"","accent":"#4690FF","demo":false,
+{"slug":"service-N","name":"Название","tagline":"Короткое описание","logo":"","hero":"","accent":"#4690FF","demo":true,
 "phone":"+7 000 000-00-00","messenger":"https://t.me/username","address":"Город, улица, дом","boxes":2,
 "hours":{"open":"09:00","close":"20:00"},"daysOff":[0],
 "services":[{"id":"wash","name":"Мойка","price":1500,"duration":60}],"gallery":[{"img":"","title":"Работа","text":"Описание"}]}
