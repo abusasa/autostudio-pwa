@@ -1,0 +1,5 @@
+{"slug":"service-1","name":"Apex Detailing","tagline":"Керамика, полировка и PPF. Работаем с премиум-классом.","logo":"","hero":"","accent":"#4690FF","demo":true,
+"phone":"+7 900 000-00-01","messenger":"https://t.me/apex_demo","address":"Москва, ул. Автозаводская, 12","boxes":2,
+"hours":{"open":"09:00","close":"20:00"},"daysOff":[0],
+"services":[{"id":"wash","name":"Детейлинг-мойка","price":3500,"duration":90},{"id":"polish","name":"Полировка кузова","price":18000,"duration":240},{"id":"ceramic","name":"Керамическое покрытие","price":45000,"duration":480},{"id":"interior","name":"Химчистка салона","price":12000,"duration":180}],
+"gallery":[{"img":"","title":"BMW M4","text":"Полировка и керамика"},{"img":"","title":"Porsche 911","text":"Защитная плёнка капота"}]}

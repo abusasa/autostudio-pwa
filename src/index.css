@@ -1,0 +1,9 @@
+@tailwind base;@tailwind components;@tailwind utilities;
+:root{--accent:70 144 255}
+body{background:#0A0A0C;color:#fff;font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding-bottom:env(safe-area-inset-bottom)}
+@layer components{
+.glass{@apply bg-white/[.06] backdrop-blur-xl border border-white/10 rounded-3xl}
+.btn{@apply rounded-2xl px-5 py-3 font-medium bg-accent/90 hover:bg-accent text-white transition active:scale-[.98] disabled:opacity-40}
+.btn-glass{@apply rounded-2xl px-5 py-3 font-medium bg-white/10 backdrop-blur-xl border border-white/20 hover:bg-white/20 transition}
+.inp{@apply w-full rounded-2xl bg-white/[.06] border border-white/10 px-4 py-3 outline-none focus:border-accent placeholder:text-white/30}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}

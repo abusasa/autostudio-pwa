@@ -1,0 +1,4 @@
+{"slug":"service-2","name":"Red Garage","tagline":"Автосервис и детейлинг","logo":"","hero":"","accent":"#E5383B","demo":true,
+"phone":"+7 900 000-00-02","messenger":"","address":"Казань, ул. Техническая, 3","boxes":1,
+"hours":{"open":"10:00","close":"19:00"},"daysOff":[0,6],
+"services":[{"id":"wash","name":"Мойка","price":1500,"duration":60},{"id":"polish","name":"Полировка фар","price":4000,"duration":90}],"gallery":[]}
