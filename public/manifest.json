@@ -1,0 +1,18 @@
+{
+  "name": "Автосервис Актау — Запись и статус авто",
+  "short_name": "СТО Актау",
+  "description": "Мобильное PWA-приложение для онлайн-записи на ремонт и обслуживание авто в Актау",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0c10",
+  "theme_color": "#0b0c10",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

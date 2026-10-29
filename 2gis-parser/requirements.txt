@@ -1,0 +1,6 @@
+playwright>=1.44
+pydantic>=2.6
+PyYAML>=6.0
+psutil>=5.9
+rapidfuzz>=3.6
+openpyxl>=3.1

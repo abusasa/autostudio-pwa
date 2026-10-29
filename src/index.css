@@ -1,0 +1,152 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root,
+:root[data-theme='dark'] {
+  --accent: 212 255 0;
+  --accent-fg: #0b0c10;
+  --bg: #0b0c10;
+  --bg2: #13151c;
+  --bg3: #1b1e28;
+  --fg: #f5f6f8;
+  --muted: #9499a6;
+  --glass: rgba(22, 25, 34, 0.72);
+  --line: rgba(255, 255, 255, 0.09);
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #f4f5f7;
+  --bg2: #ffffff;
+  --bg3: #eceef2;
+  --fg: #111318;
+  --muted: #646975;
+  --glass: rgba(255, 255, 255, 0.82);
+  --line: rgba(15, 23, 42, 0.09);
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(65% 40% at 85% 0%, rgb(var(--accent) / 0.16), transparent 70%),
+    radial-gradient(50% 35% at 10% 20%, rgb(var(--accent) / 0.08), transparent 65%),
+    var(--bg);
+  background-attachment: fixed;
+  color: var(--fg);
+  font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+@layer components {
+  .display {
+    font-family: 'Unbounded', 'Manrope', sans-serif;
+    letter-spacing: -0.025em;
+    line-height: 1.12;
+  }
+
+  .muted {
+    color: var(--muted);
+  }
+
+  .glass {
+    background: var(--glass);
+    border: 1px solid var(--line);
+    border-radius: 1.5rem;
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+  }
+
+  .card-surface {
+    background: var(--bg2);
+    border: 1px solid var(--line);
+    border-radius: 1.5rem;
+  }
+
+  .btn-accent {
+    @apply rounded-2xl px-5 py-3.5 font-bold transition duration-150 active:scale-[0.98] disabled:opacity-40 inline-flex items-center justify-center gap-2;
+    background: rgb(var(--accent));
+    color: var(--accent-fg);
+    box-shadow: 0 8px 26px -4px rgb(var(--accent) / 0.4);
+  }
+
+  .btn-glass {
+    @apply rounded-2xl px-4 py-3 font-semibold transition duration-150 active:scale-[0.98] inline-flex items-center justify-center gap-2;
+    background: var(--glass);
+    border: 1px solid var(--line);
+    color: var(--fg);
+    backdrop-filter: blur(14px);
+  }
+
+  .inp {
+    @apply w-full rounded-2xl px-4 py-3.5 outline-none transition text-sm font-medium;
+    background: var(--bg3);
+    border: 1px solid var(--line);
+    color: var(--fg);
+  }
+
+  .inp:focus {
+    border-color: rgb(var(--accent));
+    box-shadow: 0 0 0 3px rgb(var(--accent) / 0.18);
+  }
+
+  .pill {
+    @apply shrink-0 px-4 py-2.5 rounded-full text-xs font-bold transition duration-150 select-none cursor-pointer;
+    background: var(--bg2);
+    border: 1px solid var(--line);
+    color: var(--fg);
+  }
+
+  .pill-active {
+    background: rgb(var(--accent));
+    border-color: rgb(var(--accent));
+    color: var(--accent-fg);
+  }
+
+  .sheet-backdrop {
+    @apply fixed inset-0 z-50 flex items-end justify-center;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(6px);
+    animation: fadeIn 0.18s ease-out;
+  }
+
+  .sheet-panel {
+    @apply w-full max-w-xl p-5 overflow-y-auto;
+    max-height: 92vh;
+    border-radius: 2rem 2rem 0 0;
+    background: var(--bg2);
+    border-top: 1px solid var(--line);
+    animation: slideUp 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(48px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Скрытие скроллбара для горизонтальных пиллов */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

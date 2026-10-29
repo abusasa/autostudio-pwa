@@ -1,0 +1,8 @@
+node_modules
+dist
+.env
+.vercel
+2gis-parser/.chrome-profile
+2gis-parser/data
+2gis-parser/logs
+2gis-parser/out
