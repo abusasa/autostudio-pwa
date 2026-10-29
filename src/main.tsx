@@ -8,20 +8,31 @@ import DirectoryLanding from './components/DirectoryLanding'
 
 document.documentElement.dataset.theme = localStorage.getItem('sto_theme') || 'dark'
 
+// Секретный путь только для Абусамата (никто из клиентов его не угадает)
+export const SECRET_HQ_SLUG = 'hq-abusasa'
+
 function App() {
   const parts = window.location.pathname.split('/').filter(Boolean)
   const slug = parts[0]
   const subRoute = parts[1]
 
-  if (!slug) {
+  // Твой закрытый пульт управления всеми 25 СТО
+  if (slug === SECRET_HQ_SLUG) {
     return <DirectoryLanding />
   }
 
-  const cfg = slug === DEFAULT_STORE.slug ? DEFAULT_STORE : storesMap[slug]
+  // На главной странице (/) или если сервис отключён — показываем чистый дефолтный шаблон без палева других СТО
+  const disabledSlugs: string[] = JSON.parse(
+    localStorage.getItem('disabled_sto_slugs') || '[]'
+  )
 
-  if (!cfg) {
-    return <DirectoryLanding />
-  }
+  const foundStore = slug && !disabledSlugs.includes(slug) ? storesMap[slug] : undefined
+  const cfg =
+    !slug || slug === DEFAULT_STORE.slug
+      ? DEFAULT_STORE
+      : foundStore && foundStore.enabled !== false
+      ? foundStore
+      : DEFAULT_STORE
 
   document.documentElement.style.setProperty('--accent', hexToRgb(cfg.accent))
   document.documentElement.style.setProperty(

@@ -19,7 +19,7 @@
   "instagram": "https://instagram.com/dara_avto",
   "rating": 4.9,
   "reviewsCount": 22,
-  "heroPhoto": "https://i7.photo.2gis.com/main/branch/196/70000001033551791/common",
+  "heroPhoto": "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=1200&q=85",
   "logo": "",
   "accent": "#D4FF00",
   "demo": true,
@@ -123,5 +123,6 @@
       "text": "Спасибо ребятам с 2го бокса замена лобового стекла! Все вышло идеаллно как завод, супер обслуживание"
     }
   ],
-  "twoGisUrl": "https://2gis.kz/firm/70000001033551791"
+  "twoGisUrl": "https://2gis.kz/firm/70000001033551791",
+  "enabled": true
 }

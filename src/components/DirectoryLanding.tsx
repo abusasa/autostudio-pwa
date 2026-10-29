@@ -1,7 +1,9 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   Copy,
   Check,
+  Eye,
+  EyeOff,
   ExternalLink,
   MapPin,
   MessageCircle,
@@ -17,6 +19,24 @@ import type { StoreConfig } from '../lib/types'
 export default function DirectoryLanding() {
   const [search, setSearch] = useState('')
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null)
+  const [pitchLang, setPitchLang] = useState<'kk' | 'ru'>('kk')
+  const [disabledSlugs, setDisabledSlugs] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('disabled_sto_slugs') || '[]')
+    } catch {
+      return []
+    }
+  })
+
+  useEffect(() => {
+    localStorage.setItem('disabled_sto_slugs', JSON.stringify(disabledSlugs))
+  }, [disabledSlugs])
+
+  const toggleStoreEnabled = (slug: string) => {
+    setDisabledSlugs((prev) =>
+      prev.includes(slug) ? prev.filter((x) => x !== slug) : [...prev, slug]
+    )
+  }
 
   const stores = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -28,13 +48,23 @@ export default function DirectoryLanding() {
 
   const buildPitchText = (s: StoreConfig) => {
     const baseUrl = window.location.origin
+    if (pitchLang === 'kk') {
+      return (
+        `Ассалаумағалейкум, «${s.name}» автосервисінің басшылығы!\n\n` +
+        `2ГИС-тен сіздердің сервисті көрдім (${s.rating} ★, ${s.reviewsCount} пікір, ${s.address}). Клиенттер телефон соқпай-ақ онлайн жазыла алатын жеке мобильді қосымша-сайттарыңыз жоқ екенін байқадым.\n\n` +
+        `Мен сіздердің автосервиске арнап дайын жұмыс істейтін мобильді қосымша (PWA) мен тапсырыстарды басқаратын CRM-кабинет жасап қойдым:\n` +
+        `👉 Клиенттерге арналған қосымша: ${baseUrl}/${s.slug}\n` +
+        `👉 Басшылыққа арналған CRM-кабинет: ${baseUrl}/${s.slug}/admin\n\n` +
+        `Телефонмен ашып көріңізші — ішінде сіздердің мекенжай, жұмыс уақыты және 2ГИС-тегі шынайы пікірлер дайын тұр. Ұнаса, бүгін-ақ сіздерге толық қосып бере аламын!`
+      )
+    }
     return (
-      `Сәлеметсіз бе! Здравствуйте, руководство ${s.name}!\n\n` +
+      `Ассалаумағалейкум! Здравствуйте, руководство ${s.name}!\n\n` +
       `Увидел ваш автосервис в 2ГИС (${s.rating} ★, ${s.reviewsCount} отзывов, ${s.address}), но заметил, что у вас ещё нет собственного мобильного сайта-приложения для онлайн-записи клиентов без звонков.\n\n` +
       `Я уже собрал специально под ваш автосервис готовый рабочий прототип (открывается с телефона как приложение + внутри есть CRM-кабинет приёмщика):\n` +
       `👉 Приложение для клиентов: ${baseUrl}/${s.slug}\n` +
       `👉 Кабинет управления заявками (CRM): ${baseUrl}/${s.slug}/admin\n\n` +
-      `Посмотрите с телефона — там уже стоят ваши контакты, график и реальные отзывы из 2ГИС. Если понравится, можем запустить его под ваш сервис за 1 день!`
+      `Посмотрите с телефона — там уже стоят ваши контакты, график и реальные отзывы из 2ГИС. Если понравится, можем запустить его под ваш сервис уже сегодня!`
     )
   }
 
@@ -45,21 +75,43 @@ export default function DirectoryLanding() {
   }
 
   return (
-    <div className="min-h-screen max-w-4xl mx-auto px-4 py-8 space-y-6">
-      <header className="card-surface p-6 space-y-3 border border-white/15">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-lime-400/15 text-lime-300 border border-lime-400/30">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>База из 25 реальных автосервисов г. Актау (2ГИС без сайтов)</span>
+    <div className="min-h-screen max-w-5xl mx-auto px-4 py-8 space-y-6">
+      <header className="card-surface p-6 space-y-4 border border-white/15">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-lime-400/15 text-lime-300 border border-lime-400/30">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Закрытый пульт Абусамата (`/hq-abusasa`) · Клиенты эту страницу не видят</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/10">
+            <button
+              onClick={() => setPitchLang('kk')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                pitchLang === 'kk' ? 'pill-active' : 'muted'
+              }`}
+            >
+              🇰🇿 Оффер Қазақша
+            </button>
+            <button
+              onClick={() => setPitchLang('ru')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                pitchLang === 'ru' ? 'pill-active' : 'muted'
+              }`}
+            >
+              🇷🇺 Оффер Русский
+            </button>
+          </div>
         </div>
+
         <h1 className="display text-2xl sm:text-3xl font-extrabold">
-          Платформа клиентских PWA + CRM для СТО Актау
+          Управление 25 СТО г. Актау
         </h1>
         <p className="text-sm muted leading-relaxed">
-          Для каждого из 25 автосервисов Актау ниже уже сгенерировано персональное мобильное PWA-приложение (с реальным адресом, номером, фото, рейтингом и отзывами из 2ГИС) и индивидуальный CRM-кабинет управления записями на базе Supabase.
+          На главной странице `/` теперь открывается нейтральный шаблон, поэтому ни один клиент не увидит список других СТО. Здесь ты можешь в 1 клик отправлять сообщения в WhatsApp (на казахском или русском) и выключать те сервисы, которые не согласились.
         </p>
         <div className="flex flex-wrap gap-2 pt-1">
           <a href={`/${DEFAULT_STORE.slug}`} className="btn-accent text-xs !py-2.5 !px-4">
-            Открыть дефолтный мастер-шаблон (/default-sto)
+            Открыть дефолтный шаблон (/default-sto)
           </a>
           <a href={`/${DEFAULT_STORE.slug}/admin`} className="btn-glass text-xs !py-2.5 !px-4">
             Открыть демо-CRM (/default-sto/admin)
@@ -79,12 +131,18 @@ export default function DirectoryLanding() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {stores.map((s, idx) => {
+          const isDisabled = disabledSlugs.includes(s.slug)
           const waPitchUrl = s.whatsappPhone
             ? `https://wa.me/${s.whatsappPhone}?text=${encodeURIComponent(buildPitchText(s))}`
             : ''
 
           return (
-            <div key={s.slug} className="card-surface p-5 flex flex-col justify-between gap-4 hover:border-white/25 transition">
+            <div
+              key={s.slug}
+              className={`card-surface p-5 flex flex-col justify-between gap-4 transition ${
+                isDisabled ? 'opacity-45 border-red-500/20' : 'hover:border-white/25'
+              }`}
+            >
               <div className="space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5">
@@ -99,10 +157,23 @@ export default function DirectoryLanding() {
                       <div className="text-xs muted">{s.subtitle}</div>
                     </div>
                   </div>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-400/15 text-amber-300 border border-amber-400/30 shrink-0">
-                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                    {s.rating.toFixed(1)} ({s.reviewsCount})
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-400/15 text-amber-300 border border-amber-400/30 shrink-0">
+                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                      {s.rating.toFixed(1)} ({s.reviewsCount})
+                    </span>
+                    <button
+                      onClick={() => toggleStoreEnabled(s.slug)}
+                      className="btn-glass !p-1.5 !rounded-xl text-xs"
+                      title={isDisabled ? 'Включить сайт СТО' : 'Отключить сайт СТО'}
+                    >
+                      {isDisabled ? (
+                        <EyeOff className="w-4 h-4 text-red-400" />
+                      ) : (
+                        <Eye className="w-4 h-4 text-emerald-400" />
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="text-xs muted space-y-1 pt-1">
@@ -148,7 +219,7 @@ export default function DirectoryLanding() {
                       className="btn-glass !py-2 !px-3 text-xs text-emerald-400 border-emerald-500/30"
                     >
                       <MessageCircle className="w-3.5 h-3.5" />
-                      <span>Отправить в WhatsApp</span>
+                      <span>WhatsApp ({pitchLang === 'kk' ? 'ҚАЗ' : 'РУС'})</span>
                     </a>
                   )}
                   <button
@@ -163,7 +234,7 @@ export default function DirectoryLanding() {
                     ) : (
                       <>
                         <Copy className="w-3.5 h-3.5" />
-                        <span>Текст оффера</span>
+                        <span>Текст ({pitchLang === 'kk' ? 'ҚАЗ' : 'РУС'})</span>
                       </>
                     )}
                   </button>

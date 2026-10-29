@@ -244,7 +244,7 @@ export default function AdminCRM({ cfg }: { cfg: StoreConfig }) {
   }
 
   return (
-    <div className="min-h-screen max-w-2xl mx-auto pb-24 px-4 pt-4 space-y-5">
+    <div className="min-h-screen max-w-5xl mx-auto pb-24 px-4 md:px-8 pt-5 space-y-6">
       {/* Верхняя панель CRM */}
       <header className="flex items-center justify-between gap-2">
         <div>
@@ -350,7 +350,7 @@ export default function AdminCRM({ cfg }: { cfg: StoreConfig }) {
       </section>
 
       {/* Список карточек заказов */}
-      <section className="space-y-3">
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
         {filteredBookings.length > 0 ? (
           filteredBookings.map((bk) => {
             const cleanClientPhone = bk.phone.replace(/\D/g, '').replace(/^8/, '7')

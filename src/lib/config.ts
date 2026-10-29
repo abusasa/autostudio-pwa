@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 import type { StoreConfig } from './types'
 import storesList from '../data/stores.json'
 
-export const allStores = storesList as StoreConfig[]
+export const allStores = storesList as (StoreConfig & { enabled?: boolean })[]
 
-export const storesMap: Record<string, StoreConfig> = Object.fromEntries(
+export const storesMap: Record<string, StoreConfig & { enabled?: boolean }> = Object.fromEntries(
   allStores.map((s) => [s.slug, s])
 )
 
@@ -23,7 +23,7 @@ export const DEFAULT_STORE: StoreConfig = {
   instagram: '',
   rating: 5.0,
   reviewsCount: 150,
-  heroPhoto: '',
+  heroPhoto: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=1200&q=85',
   logo: '',
   accent: '#D4FF00',
   demo: true,
@@ -32,7 +32,7 @@ export const DEFAULT_STORE: StoreConfig = {
   daysOff: [0],
   boxes: 3,
   rubrics: ['Автосервис', 'Компьютерная диагностика', 'Ремонт ходовой части', 'Замена масла'],
-  attributes: ['Оплата картой', 'QR-код', 'Зона ожидания', 'Запчасти в наличии'],
+  attributes: ['Оплата картой', 'Kaspi QR', 'Зона ожидания', 'Запчасти в наличии'],
   services: allStores[0]?.services ?? [],
   reviews: [
     {
@@ -40,6 +40,12 @@ export const DEFAULT_STORE: StoreConfig = {
       rating: 5,
       date: '2026-10-20',
       text: 'Очень удобно записываться через телефон без звонков. Приехал к своему времени, бокс был свободен!'
+    },
+    {
+      author: 'Ержан М.',
+      rating: 5,
+      date: '2026-10-18',
+      text: 'Отличный сервис, быстро сделали компьютерную диагностику и заменили масло. Рекомендую!'
     }
   ],
   twoGisUrl: 'https://2gis.kz/aktau'

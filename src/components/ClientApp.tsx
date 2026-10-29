@@ -111,9 +111,9 @@ function BookModal({ cfg, busy, presetServiceId, onClose, onCreated }: BookModal
   }
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
+    <div className="sheet-backdrop md:items-center md:p-4" onClick={onClose}>
       <div
-        className="sheet-panel space-y-5"
+        className="sheet-panel md:rounded-3xl md:border md:max-w-lg space-y-5"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label="Онлайн-запись"
@@ -391,24 +391,24 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
   }
 
   return (
-    <div className="min-h-screen max-w-md mx-auto pb-32 relative select-none sm:select-auto">
+    <div className="min-h-screen max-w-5xl mx-auto pb-32 md:pb-16 relative select-none sm:select-auto">
       {/* Верхний демо-баннер */}
       {cfg.demo && (
-        <div className="px-3 py-1.5 text-[11px] font-semibold text-center bg-white/5 border-b border-white/10 flex items-center justify-center gap-2">
+        <div className="px-4 py-2 text-xs font-semibold text-center bg-white/5 border-b border-white/10 flex items-center justify-center gap-2 flex-wrap">
           <Sparkles className="w-3.5 h-3.5 shrink-0" style={{ color: 'rgb(var(--accent))' }} />
-          <span>Демо-версия PWA для {cfg.name}</span>
+          <span>Демо-версия веб-приложения и онлайн-записи для {cfg.name}</span>
           <a
             href={`/${cfg.slug}/admin`}
             className="underline font-bold ml-1"
             style={{ color: 'rgb(var(--accent))' }}
           >
-            Открыть CRM →
+            Открыть CRM-панель владельца →
           </a>
         </div>
       )}
 
-      {/* Шапка приложения (В левом верхнем углу логотип + название сервиса) */}
-      <header className="sticky top-0 z-30 px-4 py-3 flex items-center justify-between gap-2 backdrop-blur-xl bg-black/40 border-b border-white/5">
+      {/* Шапка сайта (адаптивная для телефона и ПК) */}
+      <header className="sticky top-0 z-30 px-4 md:px-8 py-3.5 flex items-center justify-between gap-4 backdrop-blur-xl bg-black/40 border-b border-white/5">
         <div className="flex items-center gap-3 min-w-0">
           {cfg.logo ? (
             <img
@@ -428,18 +428,38 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
             </div>
           )}
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h1 className="display text-base font-extrabold truncate">{cfg.name}</h1>
-              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-400/15 text-amber-300 border border-amber-400/30 shrink-0">
+            <div className="flex items-center gap-2">
+              <h1 className="display text-base md:text-lg font-extrabold truncate">{cfg.name}</h1>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-400/15 text-amber-300 border border-amber-400/30 shrink-0">
                 <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                 {cfg.rating.toFixed(1)}
               </span>
             </div>
-            <p className="text-xs muted truncate">{cfg.subtitle}</p>
+            <p className="text-xs muted truncate">{cfg.subtitle} · {cfg.address}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* Навигация для ПК (Desktop Tabs) */}
+        <div className="hidden md:flex items-center gap-1 bg-white/5 p-1 rounded-2xl border border-white/10">
+          {([
+            ['home', 'Обзор'],
+            ['services', 'Услуги и прайс'],
+            ['reviews', `Отзывы (${cfg.reviewsCount})`],
+            ['info', 'Контакты и CRM'],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                activeTab === key ? 'pill-active' : 'muted hover:text-white'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={toggleTheme}
             className="btn-glass !p-2.5 !rounded-2xl"
@@ -448,169 +468,189 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
             {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
           <a
+            href={`/${cfg.slug}/admin`}
+            className="hidden sm:inline-flex btn-glass !py-2.5 !px-3.5 !rounded-2xl text-xs"
+          >
+            <ShieldCheck className="w-4 h-4" style={{ color: 'rgb(var(--accent))' }} />
+            <span>CRM</span>
+          </a>
+          <a
             href={`tel:${cfg.phone}`}
-            className="btn-accent !py-2.5 !px-3.5 !rounded-2xl text-xs"
+            className="btn-accent !py-2.5 !px-4 !rounded-2xl text-xs"
           >
             <Phone className="w-3.5 h-3.5" />
-            <span>Звонок</span>
+            <span>Позвонить</span>
           </a>
         </div>
       </header>
 
-      {/* Основной контент вкладок */}
-      <main className="px-4 pt-4 space-y-5">
+      {/* Основной контент (адаптивная сетка для мобилки и широкого экрана ПК) */}
+      <main className="px-4 md:px-8 pt-5 space-y-7">
         {activeTab === 'home' && (
           <>
-            {/* Главная карточка (Hero с реальным фото из 2ГИС) */}
-            <section className="relative rounded-[2rem] overflow-hidden min-h-[22rem] flex flex-col justify-between p-5 border border-white/10 shadow-2xl">
-              <img
-                src={heroImage}
-                alt={cfg.name}
-                className="absolute inset-0 w-full h-full object-cover"
-                onError={(e) => {
-                  ;(e.target as HTMLImageElement).src = fallbackImg(cfg.accent, cfg.name)
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/65 to-black/25" />
-
-              {/* Верхние бейджи на карточке */}
-              <div className="relative flex items-center justify-between gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-black/60 text-white backdrop-blur-md border border-white/15">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  {cfg.workingHoursText}
-                </span>
-                <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold bg-black/60 text-amber-300 backdrop-blur-md border border-white/15">
-                  ★ {cfg.rating.toFixed(1)} · {cfg.reviewsCount} отзывов в 2ГИС
-                </span>
-              </div>
-
-              {/* Нижний блок Hero */}
-              <div className="relative space-y-3 text-white pt-12">
-                <div className="inline-flex items-center gap-1.5 text-xs text-white/80 font-medium">
-                  <MapPin className="w-3.5 h-3.5 shrink-0" style={{ color: 'rgb(var(--accent))' }} />
-                  <span>{cfg.address}</span>
-                </div>
-                <h2 className="display text-2xl sm:text-3xl font-extrabold leading-tight">
-                  {cfg.tagline}
-                </h2>
-                <div className="grid grid-cols-2 gap-2.5 pt-2">
-                  <button
-                    onClick={() => setBookingModalSvc('')}
-                    className="btn-accent !py-3.5 text-sm"
-                  >
-                    <Calendar className="w-4 h-4" />
-                    <span>Записаться</span>
-                  </button>
-                  <a
-                    href={
-                      cfg.whatsappPhone
-                        ? `https://wa.me/${cfg.whatsappPhone}?text=${encodeURIComponent(
-                            `Здравствуйте! Пишу с вашего сайта-приложения ${cfg.name}. Хочу записаться на обслуживание.`
-                          )}`
-                        : `tel:${cfg.phone}`
-                    }
-                    target="_blank"
-                    rel="noreferrer"
-                    className="btn-glass !bg-white/15 !text-white !border-white/20 !py-3.5 text-sm"
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    <span>WhatsApp</span>
-                  </a>
-                </div>
-              </div>
-            </section>
-
-            {/* 3 быстрых показателя */}
-            <section className="grid grid-cols-3 gap-2.5 text-center">
-              <div className="card-surface p-3.5">
-                <div className="display text-base font-extrabold" style={{ color: 'rgb(var(--accent))' }}>
-                  от {kzt(minPrice)}
-                </div>
-                <div className="text-[11px] muted mt-0.5">Стоимость ТО</div>
-              </div>
-              <div className="card-surface p-3.5">
-                <div className="display text-base font-extrabold">
-                  {cfg.reviewsCount}+
-                </div>
-                <div className="text-[11px] muted mt-0.5">Отзывов в 2ГИС</div>
-              </div>
-              <div className="card-surface p-3.5">
-                <div className="display text-base font-extrabold">
-                  {cfg.hours.open}–{cfg.hours.close}
-                </div>
-                <div className="text-[11px] muted mt-0.5">График работы</div>
-              </div>
-            </section>
-
-            {/* Установка PWA как приложения на телефон */}
-            <section className="card-surface p-4 flex items-center justify-between gap-3 border border-white/15">
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-2xl grid place-items-center shrink-0"
-                  style={{
-                    background: 'rgb(var(--accent) / 0.15)',
-                    color: 'rgb(var(--accent))',
+            {/* Главный блок Hero + Боковая карточка на ПК */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+              <section className="lg:col-span-8 relative rounded-[2rem] overflow-hidden min-h-[23rem] md:min-h-[26rem] flex flex-col justify-between p-6 md:p-8 border border-white/10 shadow-2xl">
+                <img
+                  src={heroImage}
+                  alt={cfg.name}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  onError={(e) => {
+                    ;(e.target as HTMLImageElement).src = fallbackImg(cfg.accent, cfg.name)
                   }}
-                >
-                  <Download className="w-5 h-5" />
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/65 to-black/25" />
+
+                <div className="relative flex items-center justify-between gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-black/65 text-white backdrop-blur-md border border-white/15">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    {cfg.workingHoursText}
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-xs font-bold bg-black/65 text-amber-300 backdrop-blur-md border border-white/15">
+                    ★ {cfg.rating.toFixed(1)} · {cfg.reviewsCount} отзывов в 2ГИС
+                  </span>
                 </div>
-                <div>
-                  <div className="font-bold text-sm">Установить как приложение</div>
-                  <div className="text-xs muted">
-                    Быстрая запись в {cfg.name} с главного экрана телефона
+
+                <div className="relative space-y-4 text-white pt-12 max-w-2xl">
+                  <div className="inline-flex items-center gap-1.5 text-xs md:text-sm text-white/85 font-medium">
+                    <MapPin className="w-4 h-4 shrink-0" style={{ color: 'rgb(var(--accent))' }} />
+                    <span>{cfg.address}</span>
+                  </div>
+                  <h2 className="display text-2xl sm:text-3xl md:text-4xl font-extrabold leading-tight">
+                    {cfg.tagline}
+                  </h2>
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    <button
+                      onClick={() => setBookingModalSvc('')}
+                      className="btn-accent !py-3.5 !px-6 text-sm"
+                    >
+                      <Calendar className="w-4 h-4" />
+                      <span>Записаться онлайн</span>
+                    </button>
+                    <a
+                      href={
+                        cfg.whatsappPhone
+                          ? `https://wa.me/${cfg.whatsappPhone}?text=${encodeURIComponent(
+                              `Здравствуйте! Пишу с сайта-приложения ${cfg.name}. Хочу записаться на обслуживание.`
+                            )}`
+                          : `tel:${cfg.phone}`
+                      }
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn-glass !bg-white/15 !text-white !border-white/20 !py-3.5 !px-6 text-sm"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span>Написать в WhatsApp</span>
+                    </a>
                   </div>
                 </div>
+              </section>
+
+              {/* Правая колонка на ПК (показатели + установка PWA + быстрый переход в CRM) */}
+              <div className="lg:col-span-4 flex flex-col justify-between gap-4">
+                <div className="grid grid-cols-3 lg:grid-cols-1 gap-3 flex-1">
+                  <div className="card-surface p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between text-center lg:text-left">
+                    <div className="text-xs muted">Стоимость обслуживания</div>
+                    <div className="display text-base md:text-xl font-extrabold mt-1 lg:mt-0" style={{ color: 'rgb(var(--accent))' }}>
+                      от {kzt(minPrice)}
+                    </div>
+                  </div>
+                  <div className="card-surface p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between text-center lg:text-left">
+                    <div className="text-xs muted">Народный рейтинг 2ГИС</div>
+                    <div className="display text-base md:text-xl font-extrabold mt-1 lg:mt-0">
+                      {cfg.rating.toFixed(1)} ★ ({cfg.reviewsCount})
+                    </div>
+                  </div>
+                  <div className="card-surface p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between text-center lg:text-left">
+                    <div className="text-xs muted">Часы приёма боксов</div>
+                    <div className="display text-base md:text-xl font-extrabold mt-1 lg:mt-0">
+                      {cfg.hours.open}–{cfg.hours.close}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Установка PWA как приложения */}
+                <div className="card-surface p-4 flex items-center justify-between gap-3 border border-white/15">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-2xl grid place-items-center shrink-0"
+                      style={{
+                        background: 'rgb(var(--accent) / 0.15)',
+                        color: 'rgb(var(--accent))',
+                      }}
+                    >
+                      <Download className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm">Приложение {cfg.name}</div>
+                      <div className="text-xs muted">
+                        Добавить иконку на главный экран телефона
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleInstallClick}
+                    className="btn-glass !py-2 !px-3.5 text-xs shrink-0"
+                  >
+                    Установить
+                  </button>
+                </div>
               </div>
-              <button
-                onClick={handleInstallClick}
-                className="btn-glass !py-2 !px-3.5 text-xs shrink-0"
-              >
-                Добавить
-              </button>
-            </section>
+            </div>
 
             {/* Статус моей записи */}
             {myBookings.length > 0 && (
               <section className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <h3 className="display text-base font-bold">Ваш визит в сервис</h3>
-                  <span className="text-xs muted">Обновляется онлайн</span>
+                  <h3 className="display text-base font-bold">Ваш активный визит в сервис</h3>
+                  <span className="text-xs muted">Статус обновляется в реальном времени</span>
                 </div>
-                {myBookings.map((bk) => (
-                  <div key={bk.id} className="card-surface p-4 space-y-2 border-l-4" style={{ borderLeftColor: 'rgb(var(--accent))' }}>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-bold text-sm">{bk.service_name}</span>
-                      {bk.status !== 'cancelled' && (
-                        <span
-                          className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
-                            STATUS_COLORS[bk.status]
-                          }`}
-                        >
-                          {STATUS_LABELS[bk.status]}
-                        </span>
-                      )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {myBookings.map((bk) => (
+                    <div
+                      key={bk.id}
+                      className="card-surface p-4 space-y-2 border-l-4"
+                      style={{ borderLeftColor: 'rgb(var(--accent))' }}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-bold text-sm">{bk.service_name}</span>
+                        {bk.status !== 'cancelled' && (
+                          <span
+                            className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+                              STATUS_COLORS[bk.status]
+                            }`}
+                          >
+                            {STATUS_LABELS[bk.status]}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs muted flex items-center gap-2">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>{fmtDateTime(bk.starts_at)}</span>
+                        <span>·</span>
+                        <span>{bk.car}</span>
+                      </div>
                     </div>
-                    <div className="text-xs muted flex items-center gap-2">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span>{fmtDateTime(bk.starts_at)}</span>
-                      <span>·</span>
-                      <span>{bk.car}</span>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </section>
             )}
 
-            {/* Категории и популярные услуги (как в референсах) */}
-            <section className="space-y-3">
+            {/* Категории и популярные услуги (в 2 колонки на ПК) */}
+            <section className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="display text-lg font-bold">Услуги и запись</h3>
+                <div>
+                  <h3 className="display text-lg md:text-xl font-bold">Услуги и онлайн-запись</h3>
+                  <p className="text-xs muted mt-0.5">
+                    Выберите услугу, чтобы забронировать свободное время без ожидания в очереди
+                  </p>
+                </div>
                 <button
                   onClick={() => setActiveTab('services')}
-                  className="text-xs font-bold flex items-center gap-0.5"
+                  className="text-xs font-bold flex items-center gap-0.5 shrink-0"
                   style={{ color: 'rgb(var(--accent))' }}
                 >
-                  Все ({cfg.services.length}) <ChevronRight className="w-4 h-4" />
+                  Все услуги ({cfg.services.length}) <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
 
@@ -626,16 +666,16 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
                 ))}
               </div>
 
-              <div className="space-y-2.5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {filteredServices.map((svc) => (
                   <div
                     key={svc.id}
                     onClick={() => setBookingModalSvc(svc.id)}
-                    className="card-surface p-4 flex items-center justify-between gap-3 cursor-pointer hover:border-white/25 transition active:scale-[0.99]"
+                    className="card-surface p-4 md:p-5 flex items-center justify-between gap-4 cursor-pointer hover:border-white/25 transition active:scale-[0.99]"
                   >
-                    <div className="space-y-1 min-w-0">
+                    <div className="space-y-1.5 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-white/5 muted">
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-white/5 muted">
                           {svc.category}
                         </span>
                         <span className="text-xs muted">~{svc.duration} мин</span>
@@ -643,9 +683,9 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
                       <div className="font-bold text-sm sm:text-base">{svc.name}</div>
                       {svc.desc && <div className="text-xs muted line-clamp-2">{svc.desc}</div>}
                     </div>
-                    <div className="text-right shrink-0 space-y-1.5">
+                    <div className="text-right shrink-0 space-y-2">
                       <div
-                        className="display text-sm font-extrabold"
+                        className="display text-sm md:text-base font-extrabold"
                         style={{ color: 'rgb(var(--accent))' }}
                       >
                         от {kzt(svc.price)}
@@ -659,44 +699,44 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
               </div>
             </section>
 
-            {/* Реальные отзывы клиентов из 2ГИС */}
-            <section className="space-y-3">
+            {/* Реальные отзывы клиентов из 2ГИС (сетка на ПК) */}
+            <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="display text-lg font-bold">Отзывы клиентов</h3>
+                  <h3 className="display text-lg md:text-xl font-bold">Отзывы клиентов в 2ГИС</h3>
                   <p className="text-xs muted">
-                    Рейтинг {cfg.rating.toFixed(1)} ★ на основе {cfg.reviewsCount} оценок в 2ГИС
+                    Рейтинг {cfg.rating.toFixed(1)} ★ на основе {cfg.reviewsCount} оценок автовладельцев Актау
                   </p>
                 </div>
                 <a
                   href={cfg.twoGisUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="btn-glass !py-1.5 !px-3 text-xs"
+                  className="btn-glass !py-2 !px-3.5 text-xs"
                 >
-                  <span>2ГИС</span>
+                  <span>Карточка 2ГИС</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>
 
-              <div className="space-y-2.5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {cfg.reviews.map((rev, i) => (
-                  <div key={i} className="card-surface p-4 space-y-2">
+                  <div key={i} className="card-surface p-4 md:p-5 space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-white/10 grid place-items-center font-bold text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-full bg-white/10 grid place-items-center font-bold text-xs">
                           {rev.author[0]}
                         </div>
                         <div>
-                          <div className="font-bold text-xs">{rev.author}</div>
-                          <div className="text-[10px] muted">Подтверждённый клиент · 2ГИС</div>
+                          <div className="font-bold text-xs sm:text-sm">{rev.author}</div>
+                          <div className="text-[11px] muted">Подтверждённый отзыв · 2ГИС</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-0.5 text-amber-400 text-xs font-bold">
                         {'★'.repeat(rev.rating)}
                       </div>
                     </div>
-                    <p className="text-xs leading-relaxed opacity-90">{rev.text}</p>
+                    <p className="text-xs sm:text-sm leading-relaxed opacity-90">{rev.text}</p>
                   </div>
                 ))}
               </div>
@@ -712,12 +752,12 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
                 Нажмите на любую услугу, чтобы выбрать свободный бокс и время
               </p>
             </div>
-            <div className="space-y-2.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {cfg.services.map((svc) => (
                 <div
                   key={svc.id}
                   onClick={() => setBookingModalSvc(svc.id)}
-                  className="card-surface p-4 flex items-center justify-between gap-3 cursor-pointer hover:border-white/25 transition"
+                  className="card-surface p-5 flex items-center justify-between gap-4 cursor-pointer hover:border-white/25 transition"
                 >
                   <div className="space-y-1">
                     <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-white/5 muted">
@@ -764,9 +804,9 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
               </a>
             </div>
 
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {cfg.reviews.map((rev, i) => (
-                <div key={i} className="card-surface p-4 space-y-2">
+                <div key={i} className="card-surface p-5 space-y-2">
                   <div className="flex items-center justify-between">
                     <b className="text-sm">{rev.author}</b>
                     <span className="text-amber-400 text-xs font-bold">
@@ -784,83 +824,84 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
         {activeTab === 'info' && (
           <section className="space-y-4">
             <h2 className="display text-2xl font-extrabold">Контакты и оснащение</h2>
-            <div className="card-surface p-5 space-y-3 text-sm">
-              <div>
-                <div className="text-xs muted">Название автосервиса</div>
-                <div className="font-bold text-base">{cfg.nameFull || cfg.name}</div>
-              </div>
-              <div>
-                <div className="text-xs muted">Адрес в г. Актау</div>
-                <div className="font-bold">{cfg.address}</div>
-              </div>
-              <div>
-                <div className="text-xs muted">Режим работы</div>
-                <div className="font-bold">{cfg.workingHoursText}</div>
-              </div>
-              <div>
-                <div className="text-xs muted">Телефоны</div>
-                <div className="space-y-1 mt-1">
-                  {cfg.allPhones.map((ph) => (
-                    <a
-                      key={ph}
-                      href={`tel:${ph}`}
-                      className="block font-bold underline"
-                      style={{ color: 'rgb(var(--accent))' }}
-                    >
-                      {ph}
-                    </a>
-                  ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="card-surface p-5 space-y-3 text-sm">
+                <div>
+                  <div className="text-xs muted">Название автосервиса</div>
+                  <div className="font-bold text-base">{cfg.nameFull || cfg.name}</div>
+                </div>
+                <div>
+                  <div className="text-xs muted">Адрес в г. Актау</div>
+                  <div className="font-bold">{cfg.address}</div>
+                </div>
+                <div>
+                  <div className="text-xs muted">Режим работы</div>
+                  <div className="font-bold">{cfg.workingHoursText}</div>
+                </div>
+                <div>
+                  <div className="text-xs muted">Телефоны</div>
+                  <div className="space-y-1 mt-1">
+                    {cfg.allPhones.map((ph) => (
+                      <a
+                        key={ph}
+                        href={`tel:${ph}`}
+                        className="block font-bold underline"
+                        style={{ color: 'rgb(var(--accent))' }}
+                      >
+                        {ph}
+                      </a>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {cfg.attributes.length > 0 && (
-              <div className="card-surface p-5 space-y-3">
-                <div className="font-bold text-sm">Специализация и удобства (по данным 2ГИС)</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {cfg.attributes.map((attr) => (
-                    <span
-                      key={attr}
-                      className="px-3 py-1.5 rounded-xl text-xs bg-white/5 border border-white/10"
-                    >
-                      {attr}
-                    </span>
-                  ))}
+              <div className="space-y-4">
+                {cfg.attributes.length > 0 && (
+                  <div className="card-surface p-5 space-y-3">
+                    <div className="font-bold text-sm">Специализация и удобства (2ГИС)</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {cfg.attributes.map((attr) => (
+                        <span
+                          key={attr}
+                          className="px-3 py-1.5 rounded-xl text-xs bg-white/5 border border-white/10"
+                        >
+                          {attr}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="card-surface p-5 space-y-3">
+                  <div className="flex items-center gap-2 font-bold text-sm">
+                    <ShieldCheck className="w-4 h-4" style={{ color: 'rgb(var(--accent))' }} />
+                    <span>Кабинет управления (CRM для владельца)</span>
+                  </div>
+                  <p className="text-xs muted">
+                    Владелец и приёмщик автосервиса видят все поступающие онлайн-заявки, могут менять статус ремонта и уведомлять клиента в WhatsApp.
+                  </p>
+                  <a href={`/${cfg.slug}/admin`} className="btn-accent w-full text-sm">
+                    Войти в CRM-панель {cfg.name} →
+                  </a>
                 </div>
               </div>
-            )}
-
-            <div className="card-surface p-5 space-y-3">
-              <div className="flex items-center gap-2 font-bold text-sm">
-                <ShieldCheck className="w-4 h-4" style={{ color: 'rgb(var(--accent))' }} />
-                <span>Кабинет управления (CRM для владельца)</span>
-              </div>
-              <p className="text-xs muted">
-                Владелец и приёмщик автосервиса видят все поступающие онлайн-заявки, могут менять статус ремонта и уведомлять клиента в WhatsApp.
-              </p>
-              <a href={`/${cfg.slug}/admin`} className="btn-accent w-full text-sm">
-                Войти в CRM-панель {cfg.name} →
-              </a>
             </div>
           </section>
         )}
 
-        {/* Обязательный дисклеймер в самом конце страницы */}
+        {/* Дисклеймер в самом конце (БЕЗ ссылки на общий каталог!) */}
         <footer className="pt-6 pb-8">
-          <div className="card-surface p-4 space-y-2 text-xs muted border border-dashed border-white/15">
+          <div className="card-surface p-4 md:p-5 space-y-2 text-xs muted border border-dashed border-white/15">
             <div className="flex items-center gap-2 font-bold text-white/80">
               <ShieldAlert className="w-4 h-4 shrink-0 text-amber-400" />
               <span>Демонстрационный образец сайта-приложения</span>
             </div>
             <p className="leading-relaxed">
-              Этот сайт создан исключительно в демонстрационных целях специально для презентации возможностей онлайн-записи автосервису <b>{cfg.name}</b> ({cfg.address}). На данный момент страница не притворяется официальной действующей службой и предназначена для ознакомления руководства сервиса.
+              Этот сайт создан в демонстрационных целях специально для презентации возможностей онлайн-записи автосервису <b>{cfg.name}</b> ({cfg.address}). Страница не притворяется официальной действующей службой и предназначена для ознакомления руководства сервиса.
             </p>
-            <div className="pt-1 flex items-center justify-between text-[11px] opacity-75">
-              <a href="/" className="underline">
-                ← Каталог всех 25 СТО Актау
-              </a>
+            <div className="pt-1 flex items-center justify-end text-[11px] opacity-75">
               <a href={`/${cfg.slug}/admin`} className="underline">
-                Панель администратора (CRM)
+                Панель администратора (CRM) →
               </a>
             </div>
           </div>
@@ -869,8 +910,8 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
 
       {/* Модальное окно инструкции установки на главный экран */}
       {showInstallHelp && (
-        <div className="sheet-backdrop" onClick={() => setShowInstallHelp(false)}>
-          <div className="sheet-panel space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-backdrop md:items-center md:p-4" onClick={() => setShowInstallHelp(false)}>
+          <div className="sheet-panel md:rounded-3xl md:border md:max-w-md space-y-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="display text-lg font-bold">Установка на главный экран</h3>
               <button
@@ -892,7 +933,7 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
               onClick={() => setShowInstallHelp(false)}
               className="btn-accent w-full"
             >
-              Понятно
+              Готово
             </button>
           </div>
         </div>
@@ -912,9 +953,9 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
         />
       )}
 
-      {/* Нижняя плавающая навигация как в нативном мобильном приложении */}
+      {/* Нижняя плавающая навигация для мобильных устройств */}
       <nav
-        className="fixed bottom-3 inset-x-3 z-40 max-w-md mx-auto glass px-3 py-2 flex items-center justify-around shadow-2xl"
+        className="md:hidden fixed bottom-3 inset-x-3 z-40 max-w-md mx-auto glass px-3 py-2 flex items-center justify-around shadow-2xl"
         aria-label="Навигация приложения"
       >
         <button
