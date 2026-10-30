@@ -11,28 +11,43 @@ document.documentElement.dataset.theme = localStorage.getItem('sto_theme') || 'd
 // Секретный путь только для Абусамата (никто из клиентов его не угадает)
 export const SECRET_HQ_SLUG = 'hq-abusasa'
 
+// Дата дедлайна авто-удаления не ответивших СТО (3 дня от 30 октября 2026 -> 2 ноября 2026 23:59:59)
+export const AUTO_CLEANUP_DEADLINE = new Date('2026-11-02T23:59:59+05:00').getTime()
+
+// Сервисы с активным подтверждением / оплатой (никогда не удаляются)
+export const WHITELISTED_SLUGS = ['marsagi', 'default-sto']
+
 function App() {
   const parts = window.location.pathname.split('/').filter(Boolean)
   const slug = parts[0]
   const subRoute = parts[1]
 
-  // Твой закрытый пульт управления всеми 25 СТО
+  const isExpired = Date.now() > AUTO_CLEANUP_DEADLINE
+
+  // Если прошло 3 дня — скрываем / удаляем пульт управления, оставив только работу с клиентами
   if (slug === SECRET_HQ_SLUG) {
+    if (isExpired) {
+      window.location.replace('/marsagi')
+      return null
+    }
     return <DirectoryLanding />
   }
 
-  // На главной странице (/) или если сервис отключён — показываем чистый дефолтный шаблон без палева других СТО
+  // На главной странице (/) или если сервис отключён/просрочен
   const disabledSlugs: string[] = JSON.parse(
     localStorage.getItem('disabled_sto_slugs') || '[]'
   )
 
-  const foundStore = slug && !disabledSlugs.includes(slug) ? storesMap[slug] : undefined
+  // Если прошло 3 дня, доступны ТОЛЬКО Whitelist-сервисы (MarSagi и дефолтный)
+  const isAllowedSlug = !isExpired || WHITELISTED_SLUGS.includes(slug)
+
+  const foundStore = slug && isAllowedSlug && !disabledSlugs.includes(slug) ? storesMap[slug] : undefined
   const cfg =
     !slug || slug === DEFAULT_STORE.slug
-      ? DEFAULT_STORE
+      ? (storesMap['marsagi'] || DEFAULT_STORE)
       : foundStore && foundStore.enabled !== false
       ? foundStore
-      : DEFAULT_STORE
+      : (storesMap['marsagi'] || DEFAULT_STORE)
 
   document.documentElement.style.setProperty('--accent', hexToRgb(cfg.accent))
   document.documentElement.style.setProperty(
