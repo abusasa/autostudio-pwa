@@ -315,6 +315,45 @@ export default function AdminCRM({ cfg }: { cfg: StoreConfig }) {
         </div>
       </section>
 
+      {/* Подключённые линии и номера WhatsApp (особенно важно для СТО с 2-3 номерами, как MarSagi) */}
+      {cfg.allPhones && cfg.allPhones.length > 1 && (
+        <section className="card-surface p-4 space-y-2.5">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5">
+              <Phone className="w-3.5 h-3.5" style={{ color: 'rgb(var(--accent))' }} />
+              <span>Подключённые номера и WhatsApp-линии ({cfg.allPhones.length} активных номера)</span>
+            </div>
+            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              Все линии синхронизированы с CRM
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {cfg.allPhones.map((ph, idx) => {
+              const roleLabel =
+                idx === 0
+                  ? 'Линия 1 · Главный приёмщик / Запись'
+                  : idx === 1
+                  ? 'Линия 2 · Детейлинг и сервис'
+                  : `Линия ${idx + 1} · Мастер-консультант / Запчасти`
+              return (
+                <div
+                  key={ph}
+                  className="rounded-xl p-2.5 bg-white/5 border border-white/10 flex items-center justify-between gap-2"
+                >
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider muted">
+                      {roleLabel}
+                    </div>
+                    <div className="font-extrabold text-sm mt-0.5">{ph}</div>
+                  </div>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
       {/* Поиск по госномеру / марке / клиенту */}
       <section className="flex gap-2">
         <div className="relative flex-1">

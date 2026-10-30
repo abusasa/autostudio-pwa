@@ -7,6 +7,7 @@ import {
   Clock,
   Download,
   ExternalLink,
+  Instagram,
   MapPin,
   MessageCircle,
   Moon,
@@ -26,6 +27,18 @@ import { fmtDateTime, generateTimeSlots, isDayOff, kzt } from '../lib/slots'
 import { createStoreBooking, fetchBusySlots, fetchStoreBookings } from '../lib/supabase'
 
 const MY_BOOKING_KEY = 'aktau_my_last_booking_'
+
+const LINE_LABELS = [
+  'Линия 1 · Главный приёмщик / Запись',
+  'Линия 2 · Мастер цеха / Консультация',
+  'Линия 3 · Детейлинг и подбор запчастей',
+]
+
+function cleanWaDigits(phone: string) {
+  const d = phone.replace(/\D/g, '')
+  if (d.startsWith('8') && d.length === 11) return '7' + d.slice(1)
+  return d
+}
 
 function firstAvailableWorkday(cfg: StoreConfig) {
   const d = new Date()
@@ -51,6 +64,7 @@ function BookModal({ cfg, busy, presetServiceId, onClose, onCreated }: BookModal
   )
   const [selectedDay, setSelectedDay] = useState<Date>(() => firstAvailableWorkday(cfg))
   const [selectedSlot, setSelectedSlot] = useState<Date | null>(null)
+  const [selectedLine, setSelectedLine] = useState<string>(cfg.allPhones[0] || cfg.phone)
   const [form, setForm] = useState({ name: '', phone: '+7 ', car: '' })
   const [errorMsg, setErrorMsg] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -163,28 +177,38 @@ function BookModal({ cfg, busy, presetServiceId, onClose, onCreated }: BookModal
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-2.5">
-              {cfg.whatsappPhone && (
-                <a
-                  href={`https://wa.me/${cfg.whatsappPhone}?text=${encodeURIComponent(
-                    `Здравствуйте! Я записался онлайн в ${cfg.name}:\n🛠 Услуга: ${createdBooking.service_name}\n📅 Время: ${fmtDateTime(createdBooking.starts_at)}\n🚗 Авто: ${createdBooking.car}\n👤 Имя: ${createdBooking.name}`
-                  )}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn-accent w-full"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  Подтвердить в WhatsApp
-                </a>
-              )}
+            <div className="space-y-2">
+              <div className="text-xs font-bold uppercase tracking-wider muted">
+                Отправить подтверждение мастеру в WhatsApp:
+              </div>
+              {cfg.allPhones.map((ph, idx) => {
+                const digits = cleanWaDigits(ph)
+                return (
+                  <a
+                    key={ph}
+                    href={`https://wa.me/${digits}?text=${encodeURIComponent(
+                      `Здравствуйте! Я записался онлайн в ${cfg.name}:\n🛠 Услуга: ${createdBooking.service_name}\n📅 Время: ${fmtDateTime(createdBooking.starts_at)}\n🚗 Авто: ${createdBooking.car}\n👤 Имя: ${createdBooking.name} (${createdBooking.phone})`
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={idx === 0 ? 'btn-accent w-full text-xs' : 'btn-glass w-full text-xs'}
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>
+                      WhatsApp {ph} ({LINE_LABELS[idx] || `Линия ${idx + 1}`})
+                    </span>
+                  </a>
+                )
+              })}
+
               <a
                 href={`/${cfg.slug}/admin`}
-                className="btn-glass w-full text-xs"
+                className="btn-glass w-full text-xs mt-2"
               >
                 Посмотреть эту заявку в CRM владельца →
               </a>
-              <button className="btn-glass w-full" onClick={onClose}>
-                Готово
+              <button className="btn-glass w-full text-xs" onClick={onClose}>
+                Закрыть окно
               </button>
             </div>
           </div>
@@ -212,6 +236,31 @@ function BookModal({ cfg, busy, presetServiceId, onClose, onCreated }: BookModal
                 ))}
               </select>
             </div>
+
+            {cfg.allPhones.length > 1 && (
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider muted block mb-1.5">
+                  Выберите линию / приёмщика ({cfg.allPhones.length} номера подключено)
+                </label>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {cfg.allPhones.map((ph, idx) => (
+                    <button
+                      type="button"
+                      key={ph}
+                      onClick={() => setSelectedLine(ph)}
+                      className={`p-2.5 rounded-xl border text-left text-xs flex items-center justify-between transition ${
+                        selectedLine === ph
+                          ? 'border-emerald-400 bg-emerald-500/10 font-bold'
+                          : 'card-surface opacity-80'
+                      }`}
+                    >
+                      <span>{LINE_LABELS[idx] || `Мастер-приёмщик #${idx + 1}`}</span>
+                      <span className="font-mono font-bold">{ph}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="text-xs font-bold uppercase tracking-wider muted block mb-1.5">
@@ -285,7 +334,7 @@ function BookModal({ cfg, busy, presetServiceId, onClose, onCreated }: BookModal
               </label>
               <input
                 className="inp"
-                placeholder="Марка, модель и год (например: Toyota Camry 70, 2020)"
+                placeholder="Марка, модель и год (например: Toyota Camry 70, Zeekr 001)"
                 value={form.car}
                 onChange={(e) => setForm({ ...form, car: e.target.value })}
               />
@@ -334,6 +383,7 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
   const [myBookings, setMyBookings] = useState<Booking[]>([])
   const [pwaInstallPrompt, setPwaInstallPrompt] = useState<any>(null)
   const [showInstallHelp, setShowInstallHelp] = useState(false)
+  const [showPhonesSheet, setShowPhonesSheet] = useState(false)
   const [theme, toggleTheme] = useTheme()
 
   const loadData = async () => {
@@ -396,7 +446,7 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
       {cfg.demo && (
         <div className="px-4 py-2 text-xs font-semibold text-center bg-white/5 border-b border-white/10 flex items-center justify-center gap-2 flex-wrap">
           <Sparkles className="w-3.5 h-3.5 shrink-0" style={{ color: 'rgb(var(--accent))' }} />
-          <span>Демо-версия веб-приложения и онлайн-записи для {cfg.name}</span>
+          <span>Система онлайн-записи и CRM для {cfg.name}</span>
           <a
             href={`/${cfg.slug}/admin`}
             className="underline font-bold ml-1"
@@ -407,7 +457,7 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
         </div>
       )}
 
-      {/* Шапка сайта (адаптивная для телефона и ПК) */}
+      {/* Шапка сайта */}
       <header className="sticky top-0 z-30 px-4 md:px-8 py-3.5 flex items-center justify-between gap-4 backdrop-blur-xl bg-black/40 border-b border-white/5">
         <div className="flex items-center gap-3 min-w-0">
           {cfg.logo ? (
@@ -474,17 +524,27 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
             <ShieldCheck className="w-4 h-4" style={{ color: 'rgb(var(--accent))' }} />
             <span>CRM</span>
           </a>
-          <a
-            href={`tel:${cfg.phone}`}
-            className="btn-accent !py-2.5 !px-4 !rounded-2xl text-xs"
-          >
-            <Phone className="w-3.5 h-3.5" />
-            <span>Позвонить</span>
-          </a>
+          {cfg.allPhones.length > 1 ? (
+            <button
+              onClick={() => setShowPhonesSheet(true)}
+              className="btn-accent !py-2.5 !px-4 !rounded-2xl text-xs"
+            >
+              <Phone className="w-3.5 h-3.5" />
+              <span>{cfg.allPhones.length} номера</span>
+            </button>
+          ) : (
+            <a
+              href={`tel:${cfg.phone}`}
+              className="btn-accent !py-2.5 !px-4 !rounded-2xl text-xs"
+            >
+              <Phone className="w-3.5 h-3.5" />
+              <span>Позвонить</span>
+            </a>
+          )}
         </div>
       </header>
 
-      {/* Основной контент (адаптивная сетка для мобилки и широкого экрана ПК) */}
+      {/* Основной контент */}
       <main className="px-4 md:px-8 pt-5 space-y-7">
         {activeTab === 'home' && (
           <>
@@ -527,26 +587,36 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
                       <Calendar className="w-4 h-4" />
                       <span>Записаться онлайн</span>
                     </button>
-                    <a
-                      href={
-                        cfg.whatsappPhone
-                          ? `https://wa.me/${cfg.whatsappPhone}?text=${encodeURIComponent(
-                              `Здравствуйте! Пишу с сайта-приложения ${cfg.name}. Хочу записаться на обслуживание.`
-                            )}`
-                          : `tel:${cfg.phone}`
-                      }
-                      target="_blank"
-                      rel="noreferrer"
-                      className="btn-glass !bg-white/15 !text-white !border-white/20 !py-3.5 !px-6 text-sm"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      <span>Написать в WhatsApp</span>
-                    </a>
+                    {cfg.allPhones.length > 1 ? (
+                      <button
+                        onClick={() => setShowPhonesSheet(true)}
+                        className="btn-glass !bg-white/15 !text-white !border-white/20 !py-3.5 !px-6 text-sm"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        <span>Выбрать WhatsApp ({cfg.allPhones.length} линии)</span>
+                      </button>
+                    ) : (
+                      <a
+                        href={
+                          cfg.whatsappPhone
+                            ? `https://wa.me/${cfg.whatsappPhone}?text=${encodeURIComponent(
+                                `Здравствуйте! Пишу с сайта-приложения ${cfg.name}. Хочу записаться на обслуживание.`
+                              )}`
+                            : `tel:${cfg.phone}`
+                        }
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn-glass !bg-white/15 !text-white !border-white/20 !py-3.5 !px-6 text-sm"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        <span>Написать в WhatsApp</span>
+                      </a>
+                    )}
                   </div>
                 </div>
               </section>
 
-              {/* Правая колонка на ПК (показатели + установка PWA + быстрый переход в CRM) */}
+              {/* Правая колонка на ПК */}
               <div className="lg:col-span-4 flex flex-col justify-between gap-4">
                 <div className="grid grid-cols-3 lg:grid-cols-1 gap-3 flex-1">
                   <div className="card-surface p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between text-center lg:text-left">
@@ -598,6 +668,72 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
               </div>
             </div>
 
+            {/* Блок мульти-номеров (особенно для MarSagi и СТО с несколькими линиями!) */}
+            {cfg.allPhones.length > 1 && (
+              <section className="card-surface p-5 space-y-3 border border-emerald-500/25">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">
+                      Многоканальная связь · {cfg.allPhones.length} активных номера
+                    </span>
+                    <h3 className="display text-base md:text-lg font-bold mt-0.5">
+                      Прямая связь с мастерами и приёмкой {cfg.name}
+                    </h3>
+                  </div>
+                  {cfg.instagram && (
+                    <a
+                      href={cfg.instagram}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn-glass !py-2 !px-3.5 text-xs"
+                    >
+                      <Instagram className="w-4 h-4 text-pink-400" />
+                      <span>Instagram</span>
+                    </a>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {cfg.allPhones.map((ph, idx) => {
+                    const digits = cleanWaDigits(ph)
+                    return (
+                      <div
+                        key={ph}
+                        className="p-3.5 rounded-2xl bg-white/5 border border-white/10 flex flex-col justify-between gap-3"
+                      >
+                        <div>
+                          <div className="text-[11px] muted font-semibold">
+                            {LINE_LABELS[idx] || `Линия связи #${idx + 1}`}
+                          </div>
+                          <div className="display text-sm font-extrabold mt-1">{ph}</div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <a
+                            href={`tel:${ph}`}
+                            className="btn-glass !py-2 !px-2.5 text-xs"
+                          >
+                            <Phone className="w-3.5 h-3.5" />
+                            <span>Позвонить</span>
+                          </a>
+                          <a
+                            href={`https://wa.me/${digits}?text=${encodeURIComponent(
+                              `Здравствуйте! Пишу с сайта-приложения ${cfg.name}. Хочу записаться на обслуживание.`
+                            )}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn-accent !py-2 !px-2.5 text-xs"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span>WhatsApp</span>
+                          </a>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+            )}
+
             {/* Статус моей записи */}
             {myBookings.length > 0 && (
               <section className="space-y-2">
@@ -636,7 +772,7 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
               </section>
             )}
 
-            {/* Категории и популярные услуги (в 2 колонки на ПК) */}
+            {/* Категории и популярные услуги */}
             <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -699,7 +835,7 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
               </div>
             </section>
 
-            {/* Реальные отзывы клиентов из 2ГИС (сетка на ПК) */}
+            {/* Реальные отзывы клиентов из 2ГИС */}
             <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -839,18 +975,40 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
                   <div className="font-bold">{cfg.workingHoursText}</div>
                 </div>
                 <div>
-                  <div className="text-xs muted">Телефоны</div>
-                  <div className="space-y-1 mt-1">
-                    {cfg.allPhones.map((ph) => (
-                      <a
-                        key={ph}
-                        href={`tel:${ph}`}
-                        className="block font-bold underline"
-                        style={{ color: 'rgb(var(--accent))' }}
-                      >
-                        {ph}
-                      </a>
-                    ))}
+                  <div className="text-xs muted">
+                    Подключённые телефоны и линии ({cfg.allPhones.length})
+                  </div>
+                  <div className="space-y-2 mt-2">
+                    {cfg.allPhones.map((ph, idx) => {
+                      const digits = cleanWaDigits(ph)
+                      return (
+                        <div
+                          key={ph}
+                          className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between gap-2"
+                        >
+                          <div>
+                            <div className="text-[11px] muted">
+                              {LINE_LABELS[idx] || `Линия #${idx + 1}`}
+                            </div>
+                            <a
+                              href={`tel:${ph}`}
+                              className="font-bold underline"
+                              style={{ color: 'rgb(var(--accent))' }}
+                            >
+                              {ph}
+                            </a>
+                          </div>
+                          <a
+                            href={`https://wa.me/${digits}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn-glass !py-1.5 !px-3 text-xs text-emerald-400"
+                          >
+                            WhatsApp
+                          </a>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               </div>
@@ -858,7 +1016,7 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
               <div className="space-y-4">
                 {cfg.attributes.length > 0 && (
                   <div className="card-surface p-5 space-y-3">
-                    <div className="font-bold text-sm">Специализация и удобства (2ГИС)</div>
+                    <div className="font-bold text-sm">Обслуживаемые марки и специализация (2ГИС)</div>
                     <div className="flex flex-wrap gap-1.5">
                       {cfg.attributes.map((attr) => (
                         <span
@@ -878,7 +1036,7 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
                     <span>Кабинет управления (CRM для владельца)</span>
                   </div>
                   <p className="text-xs muted">
-                    Владелец и приёмщик автосервиса видят все поступающие онлайн-заявки, могут менять статус ремонта и уведомлять клиента в WhatsApp.
+                    Владелец и приёмщики видят все поступающие онлайн-заявки, могут управлять {cfg.allPhones.length} подключёнными номерами, менять статус ремонта и уведомлять клиента в WhatsApp.
                   </p>
                   <a href={`/${cfg.slug}/admin`} className="btn-accent w-full text-sm">
                     Войти в CRM-панель {cfg.name} →
@@ -889,7 +1047,7 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
           </section>
         )}
 
-        {/* Дисклеймер в самом конце (БЕЗ ссылки на общий каталог!) */}
+        {/* Дисклеймер в самом конце */}
         <footer className="pt-6 pb-8">
           <div className="card-surface p-4 md:p-5 space-y-2 text-xs muted border border-dashed border-white/15">
             <div className="flex items-center gap-2 font-bold text-white/80">
@@ -897,7 +1055,7 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
               <span>Демонстрационный образец сайта-приложения</span>
             </div>
             <p className="leading-relaxed">
-              Этот сайт создан в демонстрационных целях специально для презентации возможностей онлайн-записи автосервису <b>{cfg.name}</b> ({cfg.address}). Страница не притворяется официальной действующей службой и предназначена для ознакомления руководства сервиса.
+              Этот сайт создан в демонстрационных целях специально для презентации возможностей онлайн-записи автосервису <b>{cfg.name}</b> ({cfg.address}). Страница предназначена для ознакомления руководства сервиса.
             </p>
             <div className="pt-1 flex items-center justify-end text-[11px] opacity-75">
               <a href={`/${cfg.slug}/admin`} className="underline">
@@ -907,6 +1065,72 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
           </div>
         </footer>
       </main>
+
+      {/* Модальное окно выбора одной из 3 линий связи */}
+      {showPhonesSheet && (
+        <div className="sheet-backdrop md:items-center md:p-4" onClick={() => setShowPhonesSheet(false)}>
+          <div
+            className="sheet-panel md:rounded-3xl md:border md:max-w-md space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                  Многоканальная линия {cfg.name}
+                </span>
+                <h3 className="display text-lg font-bold mt-0.5">
+                  Выберите номер для связи
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowPhonesSheet(false)}
+                className="btn-glass !p-2 !rounded-full"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              {cfg.allPhones.map((ph, idx) => {
+                const digits = cleanWaDigits(ph)
+                return (
+                  <div
+                    key={ph}
+                    className="card-surface p-4 space-y-2.5 border border-white/10"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs muted font-semibold">
+                        {LINE_LABELS[idx] || `Линия #${idx + 1}`}
+                      </span>
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-bold">
+                        На связи
+                      </span>
+                    </div>
+                    <div className="display text-base font-extrabold">{ph}</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <a href={`tel:${ph}`} className="btn-glass !py-2.5 text-xs">
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>Позвонить</span>
+                      </a>
+                      <a
+                        href={`https://wa.me/${digits}?text=${encodeURIComponent(
+                          `Здравствуйте! Пишу с сайта-приложения ${cfg.name}. Хочу записаться на обслуживание.`
+                        )}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn-accent !py-2.5 text-xs"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        <span>WhatsApp</span>
+                      </a>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Модальное окно инструкции установки на главный экран */}
       {showInstallHelp && (

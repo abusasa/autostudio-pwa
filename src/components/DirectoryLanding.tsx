@@ -8,6 +8,7 @@ import {
   MapPin,
   MessageCircle,
   Phone,
+  PhoneCall,
   Search,
   ShieldCheck,
   Sparkles,
@@ -19,7 +20,8 @@ import type { StoreConfig } from '../lib/types'
 export default function DirectoryLanding() {
   const [search, setSearch] = useState('')
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null)
-  const [pitchLang, setPitchLang] = useState<'kk' | 'ru'>('kk')
+  const [copiedCallSlug, setCopiedCallSlug] = useState<string | null>(null)
+  const [pitchLang, setPitchLang] = useState<'ru' | 'kk'>('ru')
   const [disabledSlugs, setDisabledSlugs] = useState<string[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('disabled_sto_slugs') || '[]')
@@ -46,32 +48,55 @@ export default function DirectoryLanding() {
     )
   }, [search])
 
-  const buildPitchText = (s: StoreConfig) => {
-    const baseUrl = window.location.origin
+  // 1. ТЕКСТ ДЛЯ ЧТЕНИЯ ГОЛОСОМ ВО ВРЕМЯ ЗВОНКА
+  const buildCallScript = (s: StoreConfig) => {
     if (pitchLang === 'kk') {
       return (
-        `Ассалаумағалейкум, «${s.name}» автосервисінің басшылығы!\n\n` +
-        `2ГИС-тен сіздердің сервисті көрдім (${s.rating} ★, ${s.reviewsCount} пікір, ${s.address}). Клиенттер телефон соқпай-ақ онлайн жазыла алатын жеке мобильді қосымша-сайттарыңыз жоқ екенін байқадым.\n\n` +
-        `Мен сіздердің автосервиске арнап дайын жұмыс істейтін мобильді қосымша (PWA) мен тапсырыстарды басқаратын CRM-кабинет жасап қойдым:\n` +
-        `👉 Клиенттерге арналған қосымша: ${baseUrl}/${s.slug}\n` +
-        `👉 Басшылыққа арналған CRM-кабинет: ${baseUrl}/${s.slug}/admin\n\n` +
-        `Телефонмен ашып көріңізші — ішінде сіздердің мекенжай, жұмыс уақыты және 2ГИС-тегі шынайы пікірлер дайын тұр. Ұнаса, бүгін-ақ сіздерге толық қосып бере аламын!`
+        `«Ассалаумағалейкум! Бұл Абдулла ғой, «${s.name}» автосервисі бойынша хабарласып тұрмын. ` +
+        `2ГИС-те сіздердің рейтингтеріңіз ${s.rating} ★ (${s.reviewsCount} пікір) екен, бірақ клиенттер телефон соқпай онлайн жазылатын жеке қосымша-сайттарыңыз жоқ екен. ` +
+        `Мен дәл қазір сіздердің сервиске арнап дайын онлайн-жазылу қосымшасы мен CRM-кабинет жасап қойдым. ` +
+        `Қазір осы WhatsApp нөміріңізге сілтемесін жіберсем, телефонмен ашып көресіз бе?»`
       )
     }
     return (
-      `Ассалаумағалейкум! Здравствуйте, руководство ${s.name}!\n\n` +
-      `Увидел ваш автосервис в 2ГИС (${s.rating} ★, ${s.reviewsCount} отзывов, ${s.address}), но заметил, что у вас ещё нет собственного мобильного сайта-приложения для онлайн-записи клиентов без звонков.\n\n` +
-      `Я уже собрал специально под ваш автосервис готовый рабочий прототип (открывается с телефона как приложение + внутри есть CRM-кабинет приёмщика):\n` +
-      `👉 Приложение для клиентов: ${baseUrl}/${s.slug}\n` +
-      `👉 Кабинет управления заявками (CRM): ${baseUrl}/${s.slug}/admin\n\n` +
-      `Посмотрите с телефона — там уже стоят ваши контакты, график и реальные отзывы из 2ГИС. Если понравится, можем запустить его под ваш сервис уже сегодня!`
+      `«Ассалаумағалейкум! Здравствуйте, это Абдулла, звоню в автосервис «${s.name}». ` +
+      `Увидел вас в 2ГИС — у вас отличный рейтинг (${s.rating} ★, ${s.reviewsCount} отзывов), но нет своей системы онлайн-записи для клиентов. ` +
+      `Я уже собрал специально под ваш сервис готовое приложение с онлайн-записью и CRM-кабинетом приёмщика. ` +
+      `Давайте я прямо сейчас скину вам ссылку на этот WhatsApp, посмотрите с телефона?»`
     )
   }
 
-  const copyPitch = async (s: StoreConfig) => {
-    await navigator.clipboard.writeText(buildPitchText(s))
+  // 2. КОРОТКИЙ ТЕКСТ ДЛЯ ОТПРАВКИ В WHATSAPP ПОСЛЕ ЗВОНКА
+  const buildWhatsAppMessage = (s: StoreConfig) => {
+    const baseUrl = window.location.origin
+    if (pitchLang === 'kk') {
+      return (
+        `Ассалаумағалейкум! Бұл Абдулла, жаңа ғана онлайн-жазылу бойынша хабарласқан едім.\n` +
+        `«${s.name}» автосервисіне арналған дайын жүйе:\n\n` +
+        `👉 Клиенттерге арналған қосымша: ${baseUrl}/${s.slug}\n` +
+        `👉 Қабылдаушы кабинеті (CRM): ${baseUrl}/${s.slug}/admin\n\n` +
+        `Телефонмен ашып көріңіз — телефоннан бәрі өте жылдам істейді. Көріп болған соң хабарын беріңіз, бірден іске қосамыз!`
+      )
+    }
+    return (
+      `Здравствуйте! Это Абдулла, только что звонил вам по поводу онлайн-записи.\n` +
+      `Готовая система для автосервиса «${s.name}»:\n\n` +
+      `👉 Клиентская часть: ${baseUrl}/${s.slug}\n` +
+      `👉 Кабинет приёмщика (CRM): ${baseUrl}/${s.slug}/admin\n\n` +
+      `Откройте с телефона — с телефона всё летает. Как посмотрите, дайте знать, сразу запустим!`
+    )
+  }
+
+  const copyWhatsApp = async (s: StoreConfig) => {
+    await navigator.clipboard.writeText(buildWhatsAppMessage(s))
     setCopiedSlug(s.slug)
     setTimeout(() => setCopiedSlug(null), 2500)
+  }
+
+  const copyCall = async (s: StoreConfig) => {
+    await navigator.clipboard.writeText(buildCallScript(s))
+    setCopiedCallSlug(s.slug)
+    setTimeout(() => setCopiedCallSlug(null), 2500)
   }
 
   return (
@@ -80,41 +105,41 @@ export default function DirectoryLanding() {
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-lime-400/15 text-lime-300 border border-lime-400/30">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Закрытый пульт Абусамата (`/hq-abusasa`) · Клиенты эту страницу не видят</span>
+            <span>Закрытый пульт Абдуллы (`/hq-abusasa`) · Клиенты эту страницу не видят</span>
           </div>
 
           <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/10">
-            <button
-              onClick={() => setPitchLang('kk')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                pitchLang === 'kk' ? 'pill-active' : 'muted'
-              }`}
-            >
-              🇰🇿 Оффер Қазақша
-            </button>
             <button
               onClick={() => setPitchLang('ru')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
                 pitchLang === 'ru' ? 'pill-active' : 'muted'
               }`}
             >
-              🇷🇺 Оффер Русский
+              🇷🇺 Русский
+            </button>
+            <button
+              onClick={() => setPitchLang('kk')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                pitchLang === 'kk' ? 'pill-active' : 'muted'
+              }`}
+            >
+              🇰🇿 Қазақша
             </button>
           </div>
         </div>
 
         <h1 className="display text-2xl sm:text-3xl font-extrabold">
-          Управление 25 СТО г. Актау
+          Пульт обзвона и WhatsApp по 25 СТО г. Актау
         </h1>
         <p className="text-sm muted leading-relaxed">
-          На главной странице `/` теперь открывается нейтральный шаблон, поэтому ни один клиент не увидит список других СТО. Здесь ты можешь в 1 клик отправлять сообщения в WhatsApp (на казахском или русском) и выключать те сервисы, которые не согласились.
+          В каждой карточке теперь отдельно вынесен <b>скрипт для чтения вслух при звонке</b>, а кнопка <b>WhatsApp</b> отправляет короткое сообщение после звонка: <i>«Здравствуйте! Это Абдулла, только что звонил вам по поводу онлайн-записи...»</i>
         </p>
         <div className="flex flex-wrap gap-2 pt-1">
-          <a href={`/${DEFAULT_STORE.slug}`} className="btn-accent text-xs !py-2.5 !px-4">
-            Открыть дефолтный шаблон (/default-sto)
+          <a href="/marsagi" className="btn-accent text-xs !py-2.5 !px-4">
+            ⭐ Открыть наш первый заказ: MarSagi (/marsagi — 3 номера!)
           </a>
-          <a href={`/${DEFAULT_STORE.slug}/admin`} className="btn-glass text-xs !py-2.5 !px-4">
-            Открыть демо-CRM (/default-sto/admin)
+          <a href="/marsagi/admin" className="btn-glass text-xs !py-2.5 !px-4">
+            CRM MarSagi (/marsagi/admin)
           </a>
         </div>
       </header>
@@ -133,17 +158,21 @@ export default function DirectoryLanding() {
         {stores.map((s, idx) => {
           const isDisabled = disabledSlugs.includes(s.slug)
           const waPitchUrl = s.whatsappPhone
-            ? `https://wa.me/${s.whatsappPhone}?text=${encodeURIComponent(buildPitchText(s))}`
+            ? `https://wa.me/${s.whatsappPhone}?text=${encodeURIComponent(buildWhatsAppMessage(s))}`
             : ''
 
           return (
             <div
               key={s.slug}
               className={`card-surface p-5 flex flex-col justify-between gap-4 transition ${
-                isDisabled ? 'opacity-45 border-red-500/20' : 'hover:border-white/25'
+                s.slug === 'marsagi'
+                  ? 'border-2 border-emerald-400/60 bg-emerald-500/5'
+                  : isDisabled
+                  ? 'opacity-45 border-red-500/20'
+                  : 'hover:border-white/25'
               }`}
             >
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5">
                     <span
@@ -153,7 +182,14 @@ export default function DirectoryLanding() {
                       #{idx + 1}
                     </span>
                     <div>
-                      <h2 className="display text-base font-extrabold">{s.name}</h2>
+                      <div className="flex items-center gap-2">
+                        <h2 className="display text-base font-extrabold">{s.name}</h2>
+                        {s.slug === 'marsagi' && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500 text-black">
+                            КЛИЕНТ (3 НОМЕРА)
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs muted">{s.subtitle}</div>
                     </div>
                   </div>
@@ -176,22 +212,45 @@ export default function DirectoryLanding() {
                   </div>
                 </div>
 
-                <div className="text-xs muted space-y-1 pt-1">
+                <div className="text-xs muted space-y-1">
                   <div className="flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5 shrink-0" />
                     <span>{s.address}</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <Phone className="w-3.5 h-3.5 shrink-0" />
-                    <a href={`tel:${s.phone}`} className="font-bold text-white hover:underline">
-                      {s.phone}
-                    </a>
-                    <span>·</span>
-                    <span>{s.workingHoursText}</span>
+                    {s.allPhones.map((ph) => (
+                      <a
+                        key={ph}
+                        href={`tel:${ph}`}
+                        className="font-bold text-white hover:underline mr-2"
+                      >
+                        {ph}
+                      </a>
+                    ))}
                   </div>
+                </div>
+
+                {/* Блок 1: Скрипт для чтения голосом при звонке */}
+                <div className="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1">
+                      <PhoneCall className="w-3 h-3" /> 1. Читать при звонке:
+                    </span>
+                    <button
+                      onClick={() => copyCall(s)}
+                      className="text-[11px] underline muted hover:text-white"
+                    >
+                      {copiedCallSlug === s.slug ? 'Скопировано!' : 'Копировать речь'}
+                    </button>
+                  </div>
+                  <p className="text-xs leading-relaxed opacity-90 select-all">
+                    {buildCallScript(s)}
+                  </p>
                 </div>
               </div>
 
+              {/* Блок 2: Кнопки отправки короткого сообщения в WhatsApp после звонка */}
               <div className="space-y-2 pt-2 border-t border-white/10">
                 <div className="grid grid-cols-2 gap-2">
                   <a
@@ -216,15 +275,15 @@ export default function DirectoryLanding() {
                       href={waPitchUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="btn-glass !py-2 !px-3 text-xs text-emerald-400 border-emerald-500/30"
+                      className="btn-glass !py-2.5 !px-3 text-xs text-emerald-400 border-emerald-500/30 font-bold"
                     >
                       <MessageCircle className="w-3.5 h-3.5" />
-                      <span>WhatsApp ({pitchLang === 'kk' ? 'ҚАЗ' : 'РУС'})</span>
+                      <span>2. Скинуть в WhatsApp</span>
                     </a>
                   )}
                   <button
-                    onClick={() => copyPitch(s)}
-                    className="btn-glass !py-2 !px-3 text-xs"
+                    onClick={() => copyWhatsApp(s)}
+                    className="btn-glass !py-2.5 !px-3 text-xs"
                   >
                     {copiedSlug === s.slug ? (
                       <>
@@ -234,7 +293,7 @@ export default function DirectoryLanding() {
                     ) : (
                       <>
                         <Copy className="w-3.5 h-3.5" />
-                        <span>Текст ({pitchLang === 'kk' ? 'ҚАЗ' : 'РУС'})</span>
+                        <span>Текст для WhatsApp</span>
                       </>
                     )}
                   </button>
