@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 180" fill="none">
+  <!-- Крылья слева -->
+  <path d="M 120 78 C 145 78 168 76 182 72 C 165 65 140 65 115 70 Z" fill="#E03626"/>
+  <path d="M 95 62 C 128 62 162 60 180 52 C 158 45 125 46 90 54 Z" fill="#E03626"/>
+  <path d="M 80 44 C 118 44 158 40 178 30 C 150 24 112 26 72 36 Z" fill="#E03626"/>
+  
+  <!-- Капля масла по центру -->
+  <path d="M 210 20 C 210 20 188 56 188 74 C 188 86 198 96 210 96 C 222 96 232 86 232 74 C 232 56 210 20 210 20 Z" fill="#E03626"/>
+  <path d="M 210 35 C 210 35 198 62 198 74 C 198 81 203 86 210 86 C 217 86 222 81 222 74 C 222 62 210 35 210 35 Z" fill="#ffffff"/>
+
+  <!-- Крылья справа -->
+  <path d="M 300 78 C 275 78 252 76 238 72 C 255 65 280 65 305 70 Z" fill="#E03626"/>
+  <path d="M 325 62 C 292 62 258 60 240 52 C 262 45 295 46 330 54 Z" fill="#E03626"/>
+  <path d="M 340 44 C 302 44 262 40 242 30 C 270 24 308 26 348 36 Z" fill="#E03626"/>
+
+  <!-- Текст MARSAGI -->
+  <text x="210" y="145" text-anchor="middle" font-family="'Unbounded', 'Montserrat', 'Inter', -apple-system, sans-serif" font-weight="900" font-size="44" letter-spacing="4" fill="currentColor">MARSAGI</text>
+  <text x="210" y="168" text-anchor="middle" font-family="'Inter', -apple-system, sans-serif" font-weight="700" font-size="12" letter-spacing="8" fill="#E03626">AUTO SERVICE &amp; DETAILING</text>
+</svg>
