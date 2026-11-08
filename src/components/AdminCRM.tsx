@@ -30,7 +30,7 @@ import {
   updateBookingStatus,
 } from '../lib/supabase'
 
-const VALID_PASSWORDS = ['1234', 'admin', 'marsagi', 'marsagi2026', '7070450093', 'pGE-HsT-Fc8-rdA']
+const VALID_PASSWORDS = ['MarSagi#2026', 'marsagi707']
 export const CUSTOM_SERVICES_KEY = 'marsagi_custom_services'
 
 export default function AdminCRM({ cfg }: { cfg: StoreConfig }) {

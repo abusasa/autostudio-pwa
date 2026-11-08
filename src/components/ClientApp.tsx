@@ -1655,29 +1655,32 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
           <span className="truncate">Главная</span>
         </button>
 
+        <a
+          href={directWaHref}
+          target="_blank"
+          rel="noreferrer"
+          className="w-full flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold py-1 px-0.5 rounded-xl transition min-w-0 text-emerald-400 hover:text-emerald-300"
+          title="Написать в WhatsApp"
+        >
+          <MessageCircle className="w-4 h-4 shrink-0 text-emerald-400" />
+          <span className="truncate">WhatsApp</span>
+        </a>
+
+        {/* Центральная главная кнопка — УСЛУГИ */}
         <button
           onClick={() => {
             setActiveTab('services')
             window.scrollTo({ top: 0, behavior: 'smooth' })
           }}
-          className={`w-full flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold py-1 px-0.5 rounded-xl transition min-w-0 ${
-            activeTab === 'services' ? '' : 'muted'
-          }`}
-          style={activeTab === 'services' ? { color: cfg.accent } : undefined}
+          className="-mt-4 w-12 h-12 rounded-2xl shadow-xl flex flex-col items-center justify-center shrink-0 border border-white/20 active:scale-95 transition"
+          style={{ backgroundColor: cfg.accent }}
+          title="Каталог услуг"
         >
-          <Wrench className="w-4 h-4 shrink-0" />
-          <span className="truncate">Услуги</span>
+          <Wrench className="w-5 h-5 text-white stroke-[2.3]" />
+          <span className="text-[9px] font-black uppercase tracking-tight text-white mt-0.5">
+            Услуги
+          </span>
         </button>
-
-        <a
-          href={directWaHref}
-          target="_blank"
-          rel="noreferrer"
-          className="btn-accent -mt-4 w-11 h-11 rounded-2xl shadow-xl flex items-center justify-center shrink-0 border border-white/25 active:scale-95 transition"
-          title="Написать в WhatsApp"
-        >
-          <MessageCircle className="w-5 h-5 text-white" />
-        </a>
 
         <button
           onClick={() => {
