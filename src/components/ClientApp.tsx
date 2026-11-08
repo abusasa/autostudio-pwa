@@ -40,6 +40,113 @@ import { createStoreBooking, fetchBusySlots, fetchStoreBookings, loadLeadStatesL
 
 const MY_BOOKING_KEY = 'aktau_my_last_booking_'
 
+// Словарь синонимов и ассоциаций автосервиса для умного нестрогого поиска
+const AUTO_SYNONYMS: Record<string, string[]> = {
+  диагност: ['диагностика', 'вибростенд', 'сканер', 'проверка', 'осмотр', 'компьютерная'],
+  ходовк: ['ходовая', 'подвеска', 'амортизатор', 'рычаг', 'сайлентблок', 'ступица', 'пружина', 'вибростенд'],
+  подвеск: ['ходовая', 'амортизатор', 'рычаг', 'сайлентблок', 'пружина', 'вибростенд', 'шаровая'],
+  мотор: ['двигатель', 'двс', 'грм', 'свечи', 'клапан', 'компрессия', 'масло'],
+  двс: ['двигатель', 'мотор', 'грм', 'свечи', 'компрессия', 'масло', 'поршень'],
+  двигател: ['двс', 'мотор', 'грм', 'свечи', 'компрессия', 'масло', 'диагностика'],
+  коробк: ['кпп', 'акпп', 'мкпп', 'трансмиссия', 'сцепление', 'масло акпп'],
+  акпп: ['кпп', 'коробка', 'трансмиссия', 'масло', 'фильтр акпп', 'промывка'],
+  кпп: ['акпп', 'мкпп', 'трансмиссия', 'коробка', 'сцепление'],
+  тормоз: ['колодки', 'диски', 'суппорт', 'проточка', 'жидкость', 'тж'],
+  колодк: ['тормозная', 'тормоза', 'диски', 'суппорт', 'замена колодок'],
+  диск: ['проточка', 'тормозной', 'колодки', 'суппорт'],
+  проточк: ['диски', 'тормозные', 'колодки', 'суппорт'],
+  рейк: ['рулевое', 'рулевая', 'гур', 'тяга', 'наконечник'],
+  рулев: ['рейка', 'гур', 'тяга', 'наконечник', 'управление'],
+  печк: ['охлаждение', 'промывка печки', 'радиатор', 'антифриз', 'салон'],
+  охлажд: ['печка', 'антифриз', 'радиатор', 'термостат', 'помпа'],
+  антифриз: ['охлаждение', 'радиатор', 'печка', 'термостат', 'замена'],
+  форсунк: ['топливная', 'чистка форсунок', 'ультразвук', 'бензонасос', 'инжектор'],
+  топлив: ['форсунки', 'бензонасос', 'фильтр', 'бак', 'чистка'],
+  масл: ['замена масла', 'двс', 'акпп', 'фильтр', 'двигатель', 'мотор'],
+  детейлинг: ['полировка', 'химчистка', 'мойка', 'оклейка', 'пленка'],
+  пленк: ['детейлинг', 'оклейка', 'satin', 'бронепленка', 'кузов'],
+  полировк: ['кузов', 'детейлинг', 'фары', 'царапины', 'лак'],
+  химчистк: ['салон', 'кожа', 'потолок', 'сиденья', 'детейлинг'],
+}
+
+function computeServiceRelevance(svc: ServiceItem, query: string): number {
+  const cleanQ = query.toLowerCase().trim()
+  if (!cleanQ) return 1
+
+  const name = (svc.name || '').toLowerCase()
+  const desc = (svc.desc || '').toLowerCase()
+  const cat = (svc.category || '').toLowerCase()
+  const fullText = `${name} ${desc} ${cat}`
+
+  // 1. Прямое совпадение всей поисковой фразы целиком
+  if (name.includes(cleanQ)) return 100
+  if (fullText.includes(cleanQ)) return 80
+
+  // 2. Разбивка на отдельные слова
+  const tokens = cleanQ
+    .replace(/[^a-zа-яё0-9]/gi, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length >= 2)
+
+  if (tokens.length === 0) return 0
+
+  let score = 0
+  let matchedTokens = 0
+
+  for (const token of tokens) {
+    const isGeneric = [
+      'авто',
+      'автомобиль',
+      'автомобиля',
+      'машина',
+      'машины',
+      'ремонт',
+      'замена',
+      'сервис',
+      'услуга',
+      'услуги',
+    ].includes(token)
+
+    const stem = token.length > 4 ? token.slice(0, token.length - 2) : token
+    let tokenMatched = false
+
+    if (name.includes(token)) {
+      score += 30
+      tokenMatched = true
+    } else if (name.includes(stem)) {
+      score += 20
+      tokenMatched = true
+    } else if (fullText.includes(token)) {
+      score += 15
+      tokenMatched = true
+    } else if (fullText.includes(stem)) {
+      score += 10
+      tokenMatched = true
+    }
+
+    // Проверка синонимов
+    for (const [key, synList] of Object.entries(AUTO_SYNONYMS)) {
+      if (token.startsWith(key) || key.startsWith(stem)) {
+        for (const syn of synList) {
+          if (fullText.includes(syn)) {
+            score += 12
+            tokenMatched = true
+            break
+          }
+        }
+      }
+    }
+
+    if (tokenMatched) {
+      matchedTokens++
+    } else if (isGeneric) {
+      score += 4
+    }
+  }
+
+  return matchedTokens > 0 ? score : 0
+}
+
 function cleanWaDigits(phone: string) {
   const d = (phone || '').replace(/\D/g, '')
   if (d.startsWith('8') && d.length === 11) return '7' + d.slice(1)
@@ -686,6 +793,7 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
 
   const filteredServices = useMemo(() => {
     let list = (activeServices || []) as (ServiceItem & { priceSuv?: number })[]
+
     if (selectedCategory !== 'Все') {
       const target = selectedCategory.toLowerCase()
       list = list.filter(
@@ -694,15 +802,19 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
           target.includes((s.category || '').toLowerCase())
       )
     }
+
     if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase()
-      list = list.filter(
-        (s) =>
-          (s.name || '').toLowerCase().includes(q) ||
-          (s.desc && s.desc.toLowerCase().includes(q)) ||
-          (s.category && s.category.toLowerCase().includes(q))
-      )
+      const scored = list
+        .map((s) => ({
+          service: s,
+          score: computeServiceRelevance(s, searchQuery),
+        }))
+        .filter((item) => item.score > 0)
+        .sort((a, b) => b.score - a.score)
+
+      return scored.map((item) => item.service)
     }
+
     return list
   }, [activeServices, selectedCategory, searchQuery])
 
@@ -1526,61 +1638,73 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
 
       {/* Мобильная нижняя панель */}
       <nav
-        className="md:hidden fixed bottom-3 inset-x-3 z-40 max-w-md mx-auto glass px-3 py-2 flex items-center justify-around shadow-xl"
+        className="md:hidden fixed bottom-3 inset-x-3 z-40 max-w-md mx-auto glass p-1.5 grid grid-cols-5 items-center justify-items-center shadow-2xl rounded-2xl border border-white/10"
         aria-label="Навигация"
       >
         <button
-          onClick={() => setActiveTab('home')}
-          className={`flex flex-col items-center gap-0.5 text-[11px] font-bold px-3 py-1 rounded-lg transition ${
+          onClick={() => {
+            setActiveTab('home')
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}
+          className={`w-full flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold py-1 px-0.5 rounded-xl transition min-w-0 ${
             activeTab === 'home' ? '' : 'muted'
           }`}
           style={activeTab === 'home' ? { color: cfg.accent } : undefined}
         >
-          <NicheIcon group={preset.group} className="w-5 h-5" />
-          <span>Главная</span>
+          <Car className="w-4 h-4 shrink-0" />
+          <span className="truncate">Главная</span>
         </button>
 
         <button
-          onClick={() => setActiveTab('services')}
-          className={`flex flex-col items-center gap-0.5 text-[11px] font-bold px-3 py-1 rounded-lg transition ${
+          onClick={() => {
+            setActiveTab('services')
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}
+          className={`w-full flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold py-1 px-0.5 rounded-xl transition min-w-0 ${
             activeTab === 'services' ? '' : 'muted'
           }`}
           style={activeTab === 'services' ? { color: cfg.accent } : undefined}
         >
-          <Wrench className="w-5 h-5" />
-          <span>Услуги</span>
+          <Wrench className="w-4 h-4 shrink-0" />
+          <span className="truncate">Услуги</span>
         </button>
 
         <a
           href={directWaHref}
           target="_blank"
           rel="noreferrer"
-          className="btn-accent !px-4 !py-2.5 -mt-5 shadow-lg text-xs font-extrabold"
+          className="btn-accent -mt-4 w-11 h-11 rounded-2xl shadow-xl flex items-center justify-center shrink-0 border border-white/25 active:scale-95 transition"
+          title="Написать в WhatsApp"
         >
-          <MessageCircle className="w-4 h-4" />
-          <span>WhatsApp</span>
+          <MessageCircle className="w-5 h-5 text-white" />
         </a>
 
         <button
-          onClick={() => setActiveTab('reviews')}
-          className={`flex flex-col items-center gap-0.5 text-[11px] font-bold px-3 py-1 rounded-lg transition ${
+          onClick={() => {
+            setActiveTab('reviews')
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}
+          className={`w-full flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold py-1 px-0.5 rounded-xl transition min-w-0 ${
             activeTab === 'reviews' ? '' : 'muted'
           }`}
           style={activeTab === 'reviews' ? { color: cfg.accent } : undefined}
         >
-          <Star className="w-5 h-5" />
-          <span>Отзывы</span>
+          <Star className="w-4 h-4 shrink-0" />
+          <span className="truncate">Отзывы</span>
         </button>
 
         <button
-          onClick={() => setActiveTab('info')}
-          className={`flex flex-col items-center gap-0.5 text-[11px] font-bold px-3 py-1 rounded-lg transition ${
+          onClick={() => {
+            setActiveTab('info')
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}
+          className={`w-full flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold py-1 px-0.5 rounded-xl transition min-w-0 ${
             activeTab === 'info' ? '' : 'muted'
           }`}
           style={activeTab === 'info' ? { color: cfg.accent } : undefined}
         >
-          <MapPin className="w-5 h-5" />
-          <span>Контакты</span>
+          <MapPin className="w-4 h-4 shrink-0" />
+          <span className="truncate">Контакты</span>
         </button>
       </nav>
     </div>
