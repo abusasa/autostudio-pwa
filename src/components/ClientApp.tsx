@@ -5,6 +5,7 @@ import {
   Calendar,
   Car,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   Clock,
   Download,
@@ -564,22 +565,63 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
     return () => window.removeEventListener('beforeinstallprompt', handler)
   }, [cfg.slug])
 
+  const [customServices, setCustomServices] = useState<ServiceItem[] | null>(() => {
+    try {
+      const raw = localStorage.getItem('marsagi_custom_services')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      }
+    } catch {
+      // fallback
+    }
+    return null
+  })
+
+  useEffect(() => {
+    const syncServices = () => {
+      try {
+        const raw = localStorage.getItem('marsagi_custom_services')
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setCustomServices(parsed)
+            return
+          }
+        }
+        setCustomServices(null)
+      } catch {
+        // ignore
+      }
+    }
+    window.addEventListener('storage', syncServices)
+    window.addEventListener('focus', syncServices)
+    return () => {
+      window.removeEventListener('storage', syncServices)
+      window.removeEventListener('focus', syncServices)
+    }
+  }, [])
+
+  const activeServices = useMemo(() => {
+    return customServices || cfg.services
+  }, [customServices, cfg.services])
+
   const categories = useMemo(() => {
     const set = new Set<string>(['Все'])
-    cfg.services.forEach((s) => {
+    activeServices.forEach((s) => {
       if (s.category) set.add(s.category)
     })
     return Array.from(set)
-  }, [cfg.services])
+  }, [activeServices])
 
   const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { Все: cfg.services.length }
-    cfg.services.forEach((s) => {
+    const counts: Record<string, number> = { Все: activeServices.length }
+    activeServices.forEach((s) => {
       const cat = s.category || 'Прочее'
       counts[cat] = (counts[cat] || 0) + 1
     })
     return counts
-  }, [cfg.services])
+  }, [activeServices])
 
   const categoryHighlights = useMemo(() => {
     return [
@@ -643,7 +685,7 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
   }, [])
 
   const filteredServices = useMemo(() => {
-    let list = (cfg.services || []) as (ServiceItem & { priceSuv?: number })[]
+    let list = (activeServices || []) as (ServiceItem & { priceSuv?: number })[]
     if (selectedCategory !== 'Все') {
       const target = selectedCategory.toLowerCase()
       list = list.filter(
@@ -662,7 +704,7 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
       )
     }
     return list
-  }, [cfg.services, selectedCategory, searchQuery])
+  }, [activeServices, selectedCategory, searchQuery])
 
   const heroImage = cfg.heroPhoto || fallbackImg(cfg.accent, cfg.name)
   const primaryWaDigits = cleanWaDigits(cfg.whatsappPhone || cfg.phone)
@@ -957,7 +999,7 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
               </section>
             )}
 
-            {/* 1. ЗАГОЛОВКИ И НАПРАВЛЕНИЯ УСЛУГ (ПЕРЕХОД ПО КЛИКУ НА КАТЕГОРИЮ) */}
+            {/* 1. ЗАГОЛОВКИ И НАПРАВЛЕНИЯ УСЛУГ (ПЕРЕХОД В ПАНЕЛЬ УСЛУГ) */}
             <section className="space-y-4">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
@@ -968,11 +1010,11 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
                     Категории услуг автосервиса
                   </h3>
                   <p className="text-xs muted mt-1">
-                    Нажмите на интересующее направление для мгновенного перехода к подробному прайс-листу
+                    Нажмите на интересующее направление для перехода к подробному прейскуранту
                   </p>
                 </div>
                 <div className="text-xs font-bold px-3 py-1 rounded-full bg-[var(--bg3)] border border-[var(--line)]">
-                  Всего услуг в базе: {cfg.services.length}
+                  Всего услуг в базе: {activeServices.length}
                 </div>
               </div>
 
@@ -985,8 +1027,8 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
                       key={cat.id}
                       onClick={() => {
                         setSelectedCategory(cat.title)
-                        const el = document.getElementById('services-catalog-view')
-                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        setActiveTab('services')
+                        window.scrollTo({ top: 0, behavior: 'smooth' })
                       }}
                       className={`card-surface p-4 sm:p-5 flex flex-col justify-between cursor-pointer transition hover:border-[var(--accent)] hover:shadow-md ${
                         isSelected ? 'border-[var(--accent)] ring-1 ring-[var(--accent)]' : ''
@@ -1013,187 +1055,36 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
                       </div>
 
                       <div className="pt-4 flex items-center justify-between text-xs font-bold" style={{ color: cfg.accent }}>
-                        <span>Смотреть прейскурант</span>
+                        <span>Смотреть услуги</span>
                         <ChevronRight className="w-4 h-4" />
                       </div>
                     </div>
                   )
                 })}
               </div>
-            </section>
 
-            {/* 2. ДЕТАЛЬНЫЙ ПРЕЙСКУРАНТ УСЛУГ (ПОИСК + ТУМБЛЕР КУЗОВА) */}
-            <section id="services-catalog-view" className="space-y-4 pt-2">
-              <div className="card-surface p-4 sm:p-6 space-y-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <h3 className="display text-xl font-extrabold">
-                      {selectedCategory === 'Все' ? 'Прейскурант всех услуг' : `Услуги: ${selectedCategory}`}
-                    </h3>
-                    <p className="text-xs muted mt-0.5">
-                      Официальные тарифы MarSagi · Найдено услуг: {filteredServices.length} из {cfg.services.length}
-                    </p>
+              <div className="p-4 rounded-2xl bg-[var(--bg3)] border border-[var(--line)] flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="space-y-0.5 text-center sm:text-left">
+                  <div className="font-extrabold text-sm sm:text-base">
+                    Ознакомиться со всеми услугами и ценами
                   </div>
-
-                  {/* Тумблер типа кузова (Легковые / Внедорожники) */}
-                  <div className="inline-flex p-1 rounded-xl bg-[var(--bg3)] border border-[var(--line)] shrink-0 self-start md:self-auto">
-                    <button
-                      type="button"
-                      onClick={() => setVehicleType('sedan')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                        vehicleType === 'sedan'
-                          ? 'bg-[var(--card)] text-white shadow-sm'
-                          : 'muted hover:opacity-100'
-                      }`}
-                    >
-                      <Car className="w-3.5 h-3.5" />
-                      <span>Легковые авто</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setVehicleType('suv')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                        vehicleType === 'suv'
-                          ? 'bg-[var(--card)] text-white shadow-sm'
-                          : 'muted hover:opacity-100'
-                      }`}
-                    >
-                      <Truck className="w-3.5 h-3.5" />
-                      <span>Внедорожники / Бусы</span>
-                    </button>
-                  </div>
+                  <p className="text-xs muted">
+                    Полный прейскурант на {activeServices.length} позиций с фильтром по легковым авто и внедорожникам
+                  </p>
                 </div>
-
-                {/* Строка поиска */}
-                <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Поиск по услугам (например: проточка, колодки, вибростенд, рейка, масло, печка)..."
-                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-[var(--line)] bg-[var(--bg)] text-xs sm:text-sm font-medium focus:outline-none focus:border-[var(--accent)] transition"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Горизонтальный фильтр категорий */}
-                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                  {categories.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
-                      className={`pill whitespace-nowrap text-xs ${selectedCategory === cat ? 'pill-active' : ''}`}
-                    >
-                      {cat} {cat !== 'Все' && categoryCounts[cat] ? `(${categoryCounts[cat]})` : ''}
-                    </button>
-                  ))}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory('Все')
+                    setActiveTab('services')
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                  className="btn-accent w-full sm:w-auto !py-2.5 !px-5 text-xs font-bold flex items-center justify-center gap-2 shrink-0 shadow-md"
+                >
+                  <span>Открыть полный прейскурант ({activeServices.length} услуг)</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
-
-              {/* Сетка услуг */}
-              {filteredServices.length === 0 ? (
-                <div className="card-surface p-12 text-center space-y-3">
-                  <p className="text-sm font-semibold muted">По вашему запросу ничего не найдено</p>
-                  <button
-                    onClick={() => {
-                      setSearchQuery('')
-                      setSelectedCategory('Все')
-                    }}
-                    className="btn-glass text-xs font-bold"
-                  >
-                    Сбросить фильтры
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {filteredServices.map((svc) => {
-                    const activePrice =
-                      vehicleType === 'suv' && (svc as any).priceSuv
-                        ? (svc as any).priceSuv
-                        : svc.price
-
-                    const vehicleLabel =
-                      vehicleType === 'suv' && (svc as any).priceSuv
-                        ? 'Внедорожник / микроавтобус'
-                        : 'Легковой автомобиль'
-
-                    const svcWaUrl = primaryWaDigits
-                      ? `https://wa.me/${primaryWaDigits}?text=${encodeURIComponent(
-                          `Здравствуйте! Пишу с сайта «${cfg.name}». Интересует услуга: «${svc.name}» (${vehicleLabel}). Какая актуальная цена и когда можно подъехать?`
-                        )}`
-                      : `tel:${cfg.phone}`
-
-                    return (
-                      <div
-                        key={svc.id}
-                        className="card-surface p-4 sm:p-5 flex flex-col justify-between gap-3 hover:border-zinc-400 transition"
-                      >
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between gap-2">
-                            <span
-                              className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
-                              style={{
-                                backgroundColor: `${cfg.accent}15`,
-                                color: cfg.accent,
-                              }}
-                            >
-                              {svc.category}
-                            </span>
-                            {svc.duration > 0 && (
-                              <span className="text-[11px] muted flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                <span>~{svc.duration} мин</span>
-                              </span>
-                            )}
-                          </div>
-                          <div className="font-extrabold text-sm sm:text-base leading-snug">{svc.name}</div>
-                          {svc.desc && <div className="text-xs muted leading-relaxed">{svc.desc}</div>}
-                        </div>
-
-                        <div className="pt-3 border-t border-[var(--line)] flex items-center justify-between gap-3 flex-wrap">
-                          <div>
-                            <div className="text-[10px] muted uppercase font-bold">
-                              {vehicleLabel}
-                            </div>
-                            <div
-                              className="display text-base font-black"
-                              style={{ color: cfg.accent }}
-                            >
-                              от {kzt(activePrice)}
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => setBookingModalSvc(svc.id)}
-                              className="btn-glass !py-2 !px-3 text-xs font-bold"
-                            >
-                              Записаться
-                            </button>
-                            <a
-                              href={svcWaUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="btn-accent !py-2 !px-3 text-xs font-bold"
-                            >
-                              <MessageCircle className="w-3.5 h-3.5" />
-                              <span>WhatsApp</span>
-                            </a>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
             </section>
 
             {/* ОСОБЕННОСТИ И ТЕГИ ИЗ 2ГИС */}
@@ -1294,17 +1185,31 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
 
         {activeTab === 'services' && (
           <section className="space-y-4">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('home')
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                }}
+                className="btn-glass !py-1.5 !px-3 text-xs font-bold inline-flex items-center gap-1.5"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>На главную</span>
+              </button>
+            </div>
+
             <div className="card-surface p-4 sm:p-6 space-y-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <div className="text-xs font-bold uppercase tracking-wider" style={{ color: cfg.accent }}>
                     Прейскурант услуг 2026
                   </div>
-                  <h2 className="display text-2xl font-extrabold mt-0.5">
+                  <h2 className="display text-xl sm:text-2xl font-extrabold mt-0.5 break-words">
                     {selectedCategory === 'Все' ? 'Полный прейскурант услуг' : `Услуги: ${selectedCategory}`}
                   </h2>
                   <p className="text-xs muted mt-1">
-                    Официальный прайс-лист ИП «MarSagi» (цены с учетом НДС 16%) · Найдено услуг: {filteredServices.length} из {cfg.services.length}
+                    Официальный прайс-лист ИП «MarSagi» (цены с учетом НДС 16%) · Найдено услуг: {filteredServices.length} из {activeServices.length}
                   </p>
                 </div>
 
@@ -1406,10 +1311,10 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
                   return (
                     <div
                       key={svc.id}
-                      className="card-surface p-4 sm:p-5 flex flex-col justify-between gap-3 hover:border-zinc-400 transition"
+                      className="card-surface p-4 sm:p-5 flex flex-col justify-between gap-3 hover:border-zinc-400 transition overflow-hidden break-words min-w-0"
                     >
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between gap-2">
+                      <div className="space-y-1.5 min-w-0">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
                           <span
                             className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
                             style={{
@@ -1420,33 +1325,39 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
                             {svc.category}
                           </span>
                           {svc.duration > 0 && (
-                            <span className="text-[11px] muted flex items-center gap-1">
+                            <span className="text-[11px] muted flex items-center gap-1 shrink-0">
                               <Clock className="w-3 h-3" />
                               <span>~{svc.duration} мин</span>
                             </span>
                           )}
                         </div>
-                        <div className="font-extrabold text-sm sm:text-base leading-snug">{svc.name}</div>
-                        {svc.desc && <div className="text-xs muted leading-relaxed">{svc.desc}</div>}
+                        <div className="font-extrabold text-sm sm:text-base leading-snug break-words hyphens-auto min-w-0">
+                          {svc.name}
+                        </div>
+                        {svc.desc && (
+                          <div className="text-xs muted leading-relaxed break-words min-w-0">
+                            {svc.desc}
+                          </div>
+                        )}
                       </div>
 
-                      <div className="pt-3 border-t border-[var(--line)] flex items-center justify-between gap-3 flex-wrap">
-                        <div>
-                          <div className="text-[10px] muted uppercase font-bold">
+                      <div className="pt-3 border-t border-[var(--line)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-[10px] muted uppercase font-bold truncate">
                             {vehicleLabel}
                           </div>
                           <div
-                            className="display text-base font-black"
+                            className="display text-base font-black truncate"
                             style={{ color: cfg.accent }}
                           >
                             от {kzt(activePrice)}
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
                           <button
                             onClick={() => setBookingModalSvc(svc.id)}
-                            className="btn-glass !py-2 !px-3 text-xs font-bold"
+                            className="btn-glass flex-1 sm:flex-none !py-2 !px-3 text-xs font-bold text-center"
                           >
                             Записаться
                           </button>
@@ -1454,7 +1365,7 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
                             href={svcWaUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="btn-accent !py-2 !px-3 text-xs font-bold"
+                            className="btn-accent flex-1 sm:flex-none !py-2 !px-3 text-xs font-bold text-center flex items-center justify-center gap-1.5"
                           >
                             <MessageCircle className="w-3.5 h-3.5" />
                             <span>WhatsApp</span>
@@ -1558,14 +1469,25 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
                 <div className="card-surface p-6 space-y-3">
                   <div className="flex items-center gap-2 font-bold text-sm">
                     <ShieldCheck className="w-4 h-4" style={{ color: cfg.accent }} />
-                    <span>Кабинет управления руководителя (CRM)</span>
+                    <span>Гарантия и официальный сервис</span>
                   </div>
                   <p className="text-xs muted leading-relaxed">
-                    Владелец и администратор «{cfg.name}» могут просматривать входящие заявки с сайта, менять статусы и связываться с клиентами в WhatsApp.
+                    Все работы в автосервисе «{cfg.name}» выполняются на профессиональном дилерском оборудовании опытными мастерами строго по технологическим регламентам.
                   </p>
-                  <a href={`/${cfg.slug}/admin`} className="btn-glass w-full text-xs font-bold">
-                    Открыть CRM-панель «{cfg.name}» →
-                  </a>
+                  <div className="space-y-2 pt-1 text-xs">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span>Гарантия на все виды слесарных и сервисных работ</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span>Официальные отчетные документы и чеки для юр. лиц</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span>Свой магазин масел, фильтров и оригинальных автозапчастей</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1573,13 +1495,13 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
         )}
 
         <footer className="pt-6 pb-8 space-y-3">
-          <div className="card-surface p-5 flex items-center justify-between flex-wrap gap-3 text-xs muted">
+          <div className="card-surface p-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs muted text-center sm:text-left">
             <div>
               <b>{cfg.name}</b> · {cfg.city}, {cfg.address} · Официальная платформа онлайн-записи
             </div>
-            <a href="/admin" className="underline font-semibold">
-              Вход для руководителя (CRM) →
-            </a>
+            <div className="text-[11px] font-medium">
+              Ежедневно с 09:00 до 21:00
+            </div>
           </div>
 
           <div className="p-3.5 rounded-xl border border-emerald-500/25 bg-emerald-500/10 text-xs leading-relaxed text-emerald-400 text-center max-w-2xl mx-auto flex items-center justify-center gap-2 font-bold">
@@ -1625,7 +1547,7 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
           }`}
           style={activeTab === 'services' ? { color: cfg.accent } : undefined}
         >
-          <Sparkles className="w-5 h-5" />
+          <Wrench className="w-5 h-5" />
           <span>Услуги</span>
         </button>
 

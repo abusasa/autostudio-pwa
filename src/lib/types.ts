@@ -74,20 +74,22 @@ export interface BusySlot {
   ends_at: string
 }
 
-export const STATUS_LABELS: Record<Exclude<BookingStatus, 'cancelled'>, string> = {
+export const STATUS_LABELS: Record<BookingStatus, string> = {
   new: 'Новая заявка',
   confirmed: 'Подтверждена',
   in_repair: 'В работе',
   ready: 'Готово',
   done: 'Завершено',
+  cancelled: 'Отменено',
 }
 
-export const STATUS_COLORS: Record<Exclude<BookingStatus, 'cancelled'>, string> = {
-  new: 'bg-zinc-200/15 text-zinc-200 border-zinc-400/30',
-  confirmed: 'bg-zinc-400/15 text-zinc-300 border-zinc-500/30',
-  in_repair: 'bg-zinc-500/15 text-zinc-300 border-zinc-600/30',
-  ready: 'bg-zinc-100/20 text-zinc-100 border-zinc-300/40',
-  done: 'bg-zinc-800/60 text-zinc-400 border-zinc-700/50',
+export const STATUS_COLORS: Record<BookingStatus, { bg: string; color: string }> = {
+  new: { bg: 'rgba(255, 107, 0, 0.15)', color: '#ff6b00' },
+  confirmed: { bg: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' },
+  in_repair: { bg: 'rgba(234, 179, 8, 0.15)', color: '#eab308' },
+  ready: { bg: 'rgba(168, 85, 247, 0.15)', color: '#a855f7' },
+  done: { bg: 'rgba(34, 197, 94, 0.15)', color: '#22c55e' },
+  cancelled: { bg: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' },
 }
 
 // ==========================================

@@ -150,6 +150,17 @@ export async function updateBookingStatus(
   }
 }
 
+export async function deleteStoreBooking(slug: string, id: string): Promise<void> {
+  const updated = readLocal(slug).filter((b) => b.id !== id)
+  writeLocal(slug, updated)
+
+  try {
+    await supabase.from('bookings').delete().eq('id', id)
+  } catch {
+    // ignore
+  }
+}
+
 // ============================================================================
 // ÖSU (ӨСУ) MULTI-OPERATOR AUTH, PERSONAL PROFILES & REALTIME PC <-> PHONE SYNC
 // ============================================================================
