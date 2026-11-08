@@ -86,6 +86,47 @@ const CARWASH_SERVICES: ServiceItem[] = [
 export function getNichePreset(cfg: StoreConfig): NichePreset {
   const hay = `${cfg.category || ''} ${cfg.subtitle || ''} ${(cfg.rubrics || []).join(' ')} ${cfg.name}`.toLowerCase()
 
+  if (
+    cfg.slug === 'marsagi' ||
+    hay.includes('автосервис') ||
+    hay.includes('авто') ||
+    hay.includes('сто') ||
+    hay.includes('шиномонтаж') ||
+    hay.includes('детейлинг') ||
+    hay.includes('подвеск') ||
+    hay.includes('двигател') ||
+    hay.includes('машин')
+  ) {
+    return {
+      group: 'auto',
+      nicheNom: 'Автосервис',
+      nicheAcc: 'автосервис',
+      nicheGen: 'автосервиса',
+      clientsLabel: 'автовладельцев',
+      bookingTitle: 'Запись в автосервис',
+      bookingBtnText: 'Записаться онлайн',
+      itemFieldLabel: '4. Данные автомобиля и контакт',
+      itemFieldPlaceholder: 'Марка, модель и год (например: Toyota Camry 70, Zeekr 001)',
+      itemSummaryLabel: 'Автомобиль',
+      resourceHoursLabel: 'Часы приёма боксов',
+      crmInWorkLabel: 'В боксах сейчас',
+      crmAddBtnLabel: 'Добавить в расписание боксов',
+      lineLabels: [
+        'Линия 1 · Главный приёмщик / Запись',
+        'Линия 2 · Мастер цеха / Консультация',
+        'Линия 3 · Детейлинг и подбор запчастей',
+      ],
+      statusLabels: {
+        new: 'Новая заявка',
+        confirmed: 'Ожидаем в боксе',
+        in_repair: 'В работе (бокс)',
+        ready: 'Машина готова!',
+        done: 'Выдано клиенту',
+      },
+      defaultServices: cfg.services || [],
+    }
+  }
+
   if (hay.includes('барбер') || hay.includes('barber')) {
     return {
       group: 'beauty',

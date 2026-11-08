@@ -726,30 +726,30 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
     <div className="min-h-dvh pb-24 md:pb-12">
       {/* ВЕРХНЯЯ НАВИГАЦИЯ САЙТА КЛИЕНТА */}
       <header className="sticky top-0 z-30 backdrop-blur-xl bg-[var(--glass)] border-b border-[var(--line)]">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+        <div className="max-w-6xl mx-auto px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2.5">
           <div
-            className="flex items-center gap-3 cursor-pointer"
+            className="flex items-center gap-2.5 cursor-pointer min-w-0 flex-1 mr-1"
             onClick={() => setActiveTab('home')}
           >
             {cfg.logo ? (
-              <div className="h-10 px-2 py-1 rounded-xl flex items-center bg-zinc-950/80 border border-white/10 shrink-0">
-                <img src={cfg.logo} alt={cfg.name} className="h-7 w-auto object-contain" />
+              <div className="h-9 px-2 py-1 rounded-xl flex items-center bg-zinc-950/80 border border-white/10 shrink-0">
+                <img src={cfg.logo} alt={cfg.name} className="h-6 w-auto object-contain" />
               </div>
             ) : (
               <div
-                className="w-10 h-10 rounded-xl grid place-items-center font-black text-white shadow-sm shrink-0"
+                className="w-9 h-9 rounded-xl grid place-items-center font-black text-white shadow-sm shrink-0"
                 style={{ backgroundColor: cfg.accent }}
               >
-                <NicheIcon group={preset.group} className="w-5 h-5" />
+                <NicheIcon group={preset.group} className="w-4 h-4" />
               </div>
             )}
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="display text-sm sm:text-base font-extrabold truncate">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <h1 className="display text-xs sm:text-base font-extrabold truncate">
                   {cfg.name}
                 </h1>
                 <span
-                  className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full"
+                  className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0"
                   style={{
                     backgroundColor: `${cfg.accent}18`,
                     color: cfg.accent,
@@ -758,13 +758,13 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
                   ★ {cfg.rating.toFixed(1)}
                 </span>
               </div>
-              <p className="text-[11px] muted truncate">
+              <p className="text-[10px] sm:text-[11px] muted truncate">
                 {cfg.category || cfg.subtitle} · {cfg.city}, {cfg.address}
               </p>
             </div>
           </div>
 
-          <div className="hidden md:flex items-center gap-1">
+          <div className="hidden md:flex items-center gap-1 shrink-0">
             {(
               [
                 ['home', 'Главная'],
@@ -785,10 +785,10 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
             ))}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={toggleTheme}
-              className="btn-glass !p-2.5"
+              className="btn-glass !p-2"
               title={theme === 'light' ? 'Тёмная тема' : 'Светлая тема'}
             >
               {theme === 'light' ? (
@@ -802,9 +802,9 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
               href={directWaHref}
               target="_blank"
               rel="noreferrer"
-              className="btn-accent !py-2.5 !px-4 text-xs"
+              className="btn-accent !py-2 !px-3 text-xs flex items-center gap-1.5"
             >
-              <MessageCircle className="w-4 h-4" />
+              <MessageCircle className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">WhatsApp</span>
             </a>
           </div>
@@ -837,21 +837,21 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
                       </span>
                     </div>
 
-                    <h2 className="display text-2xl sm:text-4xl font-extrabold leading-tight">
+                    <h2 className="display text-xl sm:text-3xl lg:text-4xl font-extrabold leading-tight break-words">
                       {cfg.nameFull || cfg.name}
                     </h2>
 
-                    <p className="text-sm sm:text-base muted leading-relaxed max-w-xl">
+                    <p className="text-xs sm:text-base muted leading-relaxed max-w-xl break-words">
                       {cfg.city}, {cfg.address}. {showcase.sectionSub}.
                     </p>
 
-                    {/* Главные кнопки конверсии (WhatsApp на первом месте + звонок / заявка) */}
-                    <div className="flex flex-wrap gap-3 pt-2">
+                    {/* Главные кнопки конверсии */}
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-2.5 pt-2">
                       <a
                         href={directWaHref}
                         target="_blank"
                         rel="noreferrer"
-                        className="btn-accent !py-3.5 !px-6 text-sm shadow-md"
+                        className="btn-accent !py-3 !px-5 text-xs sm:text-sm shadow-md justify-center flex items-center gap-2"
                       >
                         <MessageCircle className="w-4 h-4" />
                         <span>{showcase.heroCtaWa}</span>
@@ -859,7 +859,7 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
 
                       <a
                         href={`tel:${cfg.phone}`}
-                        className="btn-glass !py-3.5 !px-5 text-sm font-bold"
+                        className="btn-glass !py-3 !px-4 text-xs sm:text-sm font-bold justify-center flex items-center gap-2"
                       >
                         <Phone className="w-4 h-4" style={{ color: cfg.accent }} />
                         <span>{cfg.phone}</span>
@@ -867,7 +867,7 @@ export default function ClientApp({ cfg }: { cfg: StoreConfig }) {
 
                       <button
                         onClick={() => setBookingModalSvc('')}
-                        className="btn-glass !py-3.5 !px-4 text-xs muted hover:opacity-100"
+                        className="btn-glass !py-3 !px-4 text-xs font-bold justify-center flex items-center gap-2"
                       >
                         <Calendar className="w-4 h-4" />
                         <span>{showcase.heroCtaForm}</span>
